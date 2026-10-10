@@ -1,7 +1,7 @@
 const Issue = require("../models/Issue");
 const { sendSuccess, sendError } = require("../utils/response");
 
-// Mock issues store ensuring frontend and backend contracts align exactly
+// Initial mock issues with full Phase 2 details
 const INITIAL_MOCK_ISSUES = [
   {
     _id: "issue-101",
@@ -16,11 +16,27 @@ const INITIAL_MOCK_ISSUES = [
       city: "Lucknow",
       pincode: "226001",
     },
+    reporterId: "user-101",
+    reporter: {
+      id: "user-101",
+      name: "Aarav Sharma",
+      phone: "+91 98765 43210",
+    },
+    assignedDepartment: {
+      id: "dept-pwd",
+      name: "Public Works Department",
+      code: "PWD",
+    },
+    assignedOfficer: {
+      id: "user-102",
+      name: "Er. Rajesh Verma",
+    },
     images: ["https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&auto=format&fit=crop&q=60"],
     resolutionImages: [],
     supportCount: 24,
+    supporters: ["user-101"],
     timeline: [
-      { status: "submitted", remarks: "Issue submitted by citizen", timestamp: "2026-10-01T08:30:00.000Z" },
+      { status: "submitted", remarks: "Issue submitted by citizen via web portal", timestamp: "2026-10-01T08:30:00.000Z" },
       { status: "assigned", remarks: "Assigned to Public Works Department (PWD)", timestamp: "2026-10-02T11:00:00.000Z" },
       { status: "in_progress", remarks: "Road repair crew dispatched with asphalt mixer", timestamp: "2026-10-03T09:15:00.000Z" },
     ],
@@ -40,9 +56,20 @@ const INITIAL_MOCK_ISSUES = [
       city: "Lucknow",
       pincode: "226022",
     },
+    reporterId: "user-101",
+    reporter: {
+      id: "user-101",
+      name: "Aarav Sharma",
+    },
+    assignedDepartment: {
+      id: "dept-jal",
+      name: "Jal Sansthan",
+      code: "DJB",
+    },
     images: ["https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=60"],
     resolutionImages: [],
     supportCount: 15,
+    supporters: [],
     timeline: [
       { status: "submitted", remarks: "Issue logged with Jal Sansthan", timestamp: "2026-10-08T14:20:00.000Z" },
     ],
@@ -62,15 +89,30 @@ const INITIAL_MOCK_ISSUES = [
       city: "Lucknow",
       pincode: "226024",
     },
+    reporterId: "user-104",
+    reporter: {
+      id: "user-104",
+      name: "Ramesh Pandey",
+    },
+    assignedDepartment: {
+      id: "dept-mvvnl",
+      name: "Madhyanchal Vidyut Vitran Nigam",
+      code: "MVVNL",
+    },
+    assignedOfficer: {
+      id: "user-102",
+      name: "Er. Rajesh Verma",
+    },
     images: ["https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=800&auto=format&fit=crop&q=60"],
     resolutionImages: ["https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=60"],
     supportCount: 39,
+    supporters: ["user-101"],
     timeline: [
-      { status: "submitted", remarks: "Submitted", timestamp: "2026-09-25T19:00:00.000Z" },
+      { status: "submitted", remarks: "Submitted by citizen", timestamp: "2026-09-25T19:00:00.000Z" },
       { status: "assigned", remarks: "Assigned to Madhyanchal Vidyut Vitran Nigam", timestamp: "2026-09-26T10:00:00.000Z" },
       { status: "in_progress", remarks: "Transformer fuse replaced", timestamp: "2026-09-27T16:00:00.000Z" },
       { status: "awaiting_verification", remarks: "LED luminaires re-energized", timestamp: "2026-09-28T18:00:00.000Z" },
-      { status: "resolved", remarks: "Citizen verified fix", timestamp: "2026-09-29T10:00:00.000Z" },
+      { status: "resolved", remarks: "Citizen verified fix with satisfaction score 5/5", timestamp: "2026-09-29T10:00:00.000Z" },
     ],
     createdAt: "2026-09-25T19:00:00.000Z",
     updatedAt: "2026-09-29T10:00:00.000Z",
@@ -81,7 +123,7 @@ let inMemoryIssues = [...INITIAL_MOCK_ISSUES];
 
 const getAllIssues = async (req, res, next) => {
   try {
-    const { status, category, search } = req.query;
+    const { status, category, search, sortBy } = req.query;
 
     let issues = [];
     try {
@@ -89,15 +131,28 @@ const getAllIssues = async (req, res, next) => {
       if (status) query.status = status;
       if (category) query.category = category;
       if (search) query.title = { $regex: search, $options: "i" };
-      issues = await Issue.find(query).sort({ createdAt: -1 });
+
+      let sortOptions = { createdAt: -1 };
+      if (sortBy === "support") sortOptions = { supportCount: -1 };
+      if (sortBy === "oldest") sortOptions = { createdAt: 1 };
+
+      issues = await Issue.find(query).sort(sortOptions);
     } catch {
-      // Fallback to inMemory store if MongoDB query fails/disconnected
+      // In-memory fallback
       issues = inMemoryIssues.filter((item) => {
         if (status && item.status !== status) return false;
         if (category && item.category !== category) return false;
-        if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
+        if (search && !item.title.toLowerCase().includes(search.toLowerCase()) && !item.description.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
       });
+
+      if (sortBy === "support") {
+        issues.sort((a, b) => (b.supportCount || 0) - (a.supportCount || 0));
+      } else if (sortBy === "oldest") {
+        issues.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      } else {
+        issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
     }
 
     if (!issues || issues.length === 0) {
@@ -110,15 +165,37 @@ const getAllIssues = async (req, res, next) => {
   }
 };
 
+const getMyIssues = async (req, res, next) => {
+  try {
+    const currentUserId = req.user?.id || "user-101";
+
+    let myIssues = [];
+    try {
+      myIssues = await Issue.find({ reporterId: currentUserId }).sort({ createdAt: -1 });
+    } catch {}
+
+    if (!myIssues || myIssues.length === 0) {
+      myIssues = inMemoryIssues.filter((i) => i.reporterId === currentUserId || i.reporter?.id === currentUserId);
+    }
+
+    // If still empty in demo mode, return default user-101 issues
+    if (myIssues.length === 0) {
+      myIssues = inMemoryIssues.slice(0, 2);
+    }
+
+    return sendSuccess(res, "My issues fetched successfully", { issues: myIssues, count: myIssues.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getIssueById = async (req, res, next) => {
   try {
     const { id } = req.params;
     let issue;
     try {
       issue = await Issue.findById(id);
-    } catch {
-      // Fallback
-    }
+    } catch {}
 
     if (!issue) {
       issue = inMemoryIssues.find((item) => item.id === id || item._id === id);
@@ -137,6 +214,8 @@ const getIssueById = async (req, res, next) => {
 const createIssue = async (req, res, next) => {
   try {
     const { title, description, category, location, images = [] } = req.body;
+    const reporterId = req.user?.id || "user-101";
+    const reporterName = req.user?.name || "Aarav Sharma";
 
     if (!title || !description || !category || !location || !location.address) {
       return sendError(res, "Missing required fields: title, description, category, location.address", [], 400);
@@ -151,11 +230,18 @@ const createIssue = async (req, res, next) => {
         address: location.address,
         area: location.area || "City Center",
         city: location.city || "Lucknow",
-        pincode: location.pincode || "",
+        pincode: location.pincode || "226001",
+        coordinates: location.coordinates,
+      },
+      reporterId,
+      reporter: {
+        id: reporterId,
+        name: reporterName,
       },
       images,
       resolutionImages: [],
       supportCount: 1,
+      supporters: [reporterId],
       timeline: [
         {
           status: "submitted",
@@ -219,9 +305,7 @@ const updateStatus = async (req, res, next) => {
         }
         await updatedIssue.save();
       }
-    } catch {
-      // Fallback
-    }
+    } catch {}
 
     if (!updatedIssue) {
       const idx = inMemoryIssues.findIndex((item) => item.id === id || item._id === id);
@@ -249,29 +333,112 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const assignDepartment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { departmentName, departmentCode, officerName } = req.body;
+
+    let updatedIssue;
+    try {
+      updatedIssue = await Issue.findById(id);
+      if (updatedIssue) {
+        updatedIssue.status = "assigned";
+        updatedIssue.timeline.push({
+          status: "assigned",
+          remarks: `Assigned to ${departmentName || "Department"}`,
+          timestamp: new Date(),
+        });
+        await updatedIssue.save();
+      }
+    } catch {}
+
+    const idx = inMemoryIssues.findIndex((item) => item.id === id || item._id === id);
+    if (idx !== -1) {
+      inMemoryIssues[idx].status = "assigned";
+      inMemoryIssues[idx].assignedDepartment = {
+        id: `dept-${Date.now()}`,
+        name: departmentName || "Public Works Department",
+        code: departmentCode || "PWD",
+      };
+      if (officerName) {
+        inMemoryIssues[idx].assignedOfficer = {
+          id: `off-${Date.now()}`,
+          name: officerName,
+        };
+      }
+      inMemoryIssues[idx].timeline.push({
+        status: "assigned",
+        remarks: `Assigned to ${departmentName || "Public Works Department"} by Administrator`,
+        timestamp: new Date().toISOString(),
+      });
+      updatedIssue = inMemoryIssues[idx];
+    }
+
+    if (!updatedIssue) {
+      return sendError(res, "Issue not found", [], 404);
+    }
+
+    return sendSuccess(res, "Department assigned successfully", { issue: updatedIssue });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const attachEvidence = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { evidenceUrl, remarks = "Official resolution photo evidence attached" } = req.body;
+
+    if (!evidenceUrl) {
+      return sendError(res, "evidenceUrl is required", [], 400);
+    }
+
+    const idx = inMemoryIssues.findIndex((item) => item.id === id || item._id === id);
+    if (idx !== -1) {
+      inMemoryIssues[idx].resolutionImages.push(evidenceUrl);
+      inMemoryIssues[idx].status = "awaiting_verification";
+      inMemoryIssues[idx].timeline.push({
+        status: "awaiting_verification",
+        remarks,
+        timestamp: new Date().toISOString(),
+      });
+      return sendSuccess(res, "Resolution evidence attached", { issue: inMemoryIssues[idx] });
+    }
+
+    return sendError(res, "Issue not found", [], 404);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const supportIssue = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const currentUserId = req.user?.id || `user-anon-${Date.now()}`;
+
     let found = inMemoryIssues.find((item) => item.id === id || item._id === id);
     if (found) {
-      found.supportCount = (found.supportCount || 0) + 1;
-      return sendSuccess(res, "Support recorded successfully", {
-        issueId: id,
-        supportCount: found.supportCount,
-      });
-    }
-
-    try {
-      const issue = await Issue.findById(id);
-      if (issue) {
-        issue.supportCount += 1;
-        await issue.save();
-        return sendSuccess(res, "Support recorded successfully", {
+      found.supporters = found.supporters || [];
+      const hasAlready = found.supporters.includes(currentUserId);
+      if (hasAlready) {
+        // Toggle off support
+        found.supporters = found.supporters.filter((uid) => uid !== currentUserId);
+        found.supportCount = Math.max(0, (found.supportCount || 1) - 1);
+        return sendSuccess(res, "Support removed", {
           issueId: id,
-          supportCount: issue.supportCount,
+          supportCount: found.supportCount,
+          hasSupported: false,
+        });
+      } else {
+        found.supporters.push(currentUserId);
+        found.supportCount = (found.supportCount || 0) + 1;
+        return sendSuccess(res, "Issue supported successfully", {
+          issueId: id,
+          supportCount: found.supportCount,
+          hasSupported: true,
         });
       }
-    } catch {}
+    }
 
     return sendError(res, "Issue not found", [], 404);
   } catch (error) {
@@ -281,8 +448,11 @@ const supportIssue = async (req, res, next) => {
 
 module.exports = {
   getAllIssues,
+  getMyIssues,
   getIssueById,
   createIssue,
   updateStatus,
+  assignDepartment,
+  attachEvidence,
   supportIssue,
 };

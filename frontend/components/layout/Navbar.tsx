@@ -31,28 +31,40 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Navigation links */}
             <nav className="hidden md:flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
               <Link
+                href="/issues"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
+                Explore Issues
+              </Link>
+              <Link
                 href="/citizen"
-                className="px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
               >
                 Citizen Portal
               </Link>
               <Link
                 href="/officer"
-                className="px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
               >
                 Officer Taskboard
               </Link>
               <Link
                 href="/admin"
-                className="px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
               >
                 Administration
               </Link>
               <Link
                 href="/schemes"
-                className="px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
               >
                 Gov Schemes
+              </Link>
+              <Link
+                href="/transparency"
+                className="px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
+                Transparency
               </Link>
             </nav>
           </div>
@@ -81,7 +93,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ThemeToggle />
 
             <Link
-              href="/citizen#report"
+              href="/profile"
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Profile & Account"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </Link>
+
+            <Link
+              href="/citizen/report"
               className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/25 transition-all hover:scale-102 active:scale-98"
             >
               + File Grievance
@@ -108,7 +130,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-900 space-y-2 text-xs font-bold uppercase tracking-wider">
+        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-900 space-y-2 text-xs font-bold tracking-wide">
+          <Link
+            href="/issues"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-slate-700 dark:text-slate-200 hover:text-emerald-600"
+          >
+            Explore Issues
+          </Link>
           <Link
             href="/citizen"
             onClick={() => setMobileMenuOpen(false)}
@@ -136,6 +165,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="block py-2 text-slate-700 dark:text-slate-200 hover:text-emerald-600"
           >
             Gov Schemes
+          </Link>
+          <Link
+            href="/transparency"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-slate-700 dark:text-slate-200 hover:text-emerald-600"
+          >
+            Public Transparency
+          </Link>
+          <Link
+            href="/profile"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-slate-700 dark:text-slate-200 hover:text-emerald-600"
+          >
+            Profile & Settings
           </Link>
         </div>
       )}

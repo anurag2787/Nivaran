@@ -100,14 +100,19 @@ export default function SchemesPage() {
               </div>
 
               <CardFooter className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Official Ministry Portal</span>
+                <Link
+                  href={`/schemes/${scheme.id}`}
+                  className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+                >
+                  View Full Criteria →
+                </Link>
                 <a
                   href={scheme.applyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                 >
-                  Apply Online →
+                  Apply Online ↗
                 </a>
               </CardFooter>
             </Card>

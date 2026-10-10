@@ -3,48 +3,160 @@ import { mockIssues, mockSchemes, mockStats, mockUser } from "./mockData";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-/**
- * Universal API Client with automatic mock fallback for offline/isolated frontend development
- */
+const getAuthHeaders = (): Record<string, string> => {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("nivaran-token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export const api = {
-  // Healthcheck
-  async checkHealth(): Promise<boolean> {
+  // Auth API (Phase 2 Module A)
+  async login(email: string, password: string): Promise<{ user: User; token: string }> {
     try {
-      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
-      const data = await res.json();
-      return data.success === true;
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const json: ApiResponse<{ user: User; token: string }> = await res.json();
+      if (!res.ok) throw new Error(json.message || "Login failed");
+
+      if (json.data.token && typeof window !== "undefined") {
+        localStorage.setItem("nivaran-token", json.data.token);
+        localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+      }
+      return json.data;
     } catch {
-      return false;
+      // Mock fallback
+      const role = email.includes("officer") ? "officer" : email.includes("admin") ? "admin" : "citizen";
+      const user: User = {
+        ...mockUser,
+        email,
+        role,
+        name: email.split("@")[0].toUpperCase() + " User",
+      };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nivaran-token", "mock-jwt-token-nivaran-phase1");
+        localStorage.setItem("nivaran-user", JSON.stringify(user));
+      }
+      return { user, token: "mock-jwt-token-nivaran-phase1" };
     }
   },
 
-  // Issues
-  async getIssues(filters?: { status?: string; category?: string; search?: string }): Promise<Issue[]> {
+  async register(name: string, email: string, password: string, phone = ""): Promise<{ user: User; token: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, phone }),
+      });
+      const json: ApiResponse<{ user: User; token: string }> = await res.json();
+      if (!res.ok) throw new Error(json.message || "Registration failed");
+
+      if (json.data.token && typeof window !== "undefined") {
+        localStorage.setItem("nivaran-token", json.data.token);
+        localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+      }
+      return json.data;
+    } catch {
+      const user: User = {
+        id: `user-${Date.now()}`,
+        name,
+        email,
+        role: "citizen",
+        phone,
+      };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nivaran-token", "mock-jwt-token-nivaran-phase1");
+        localStorage.setItem("nivaran-user", JSON.stringify(user));
+      }
+      return { user, token: "mock-jwt-token-nivaran-phase1" };
+    }
+  },
+
+  logout(): void {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("nivaran-token");
+      localStorage.removeItem("nivaran-user");
+    }
+  },
+
+  async getMe(): Promise<User> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: getAuthHeaders(),
+      });
+      const json: ApiResponse<{ user: User }> = await res.json();
+      return json.data.user;
+    } catch {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("nivaran-user");
+        if (stored) return JSON.parse(stored);
+      }
+      return mockUser;
+    }
+  },
+
+  async updateProfile(updates: Partial<User>): Promise<User> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(updates),
+      });
+      const json: ApiResponse<{ user: User }> = await res.json();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+      }
+      return json.data.user;
+    } catch {
+      const updated = { ...mockUser, ...updates };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nivaran-user", JSON.stringify(updated));
+      }
+      return updated;
+    }
+  },
+
+  // Issues (Phase 2 Modules B, C, D)
+  async getIssues(filters?: { status?: string; category?: string; search?: string; sortBy?: string }): Promise<Issue[]> {
     try {
       const params = new URLSearchParams();
       if (filters?.status) params.append("status", filters.status);
       if (filters?.category) params.append("category", filters.category);
       if (filters?.search) params.append("search", filters.search);
+      if (filters?.sortBy) params.append("sortBy", filters.sortBy);
 
       const res = await fetch(`${API_BASE_URL}/issues?${params.toString()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("Network response was not ok");
+      if (!res.ok) throw new Error("Failed to fetch");
       const json: ApiResponse<{ issues: Issue[] }> = await res.json();
       return json.data.issues || mockIssues;
     } catch {
-      // Fallback to mock issues
       return mockIssues.filter((item) => {
         if (filters?.status && item.status !== filters.status) return false;
         if (filters?.category && item.category !== filters.category) return false;
-        if (filters?.search && !item.title.toLowerCase().includes(filters.search.toLowerCase())) return false;
+        if (filters?.search && !item.title.toLowerCase().includes(filters.search.toLowerCase()) && !item.description.toLowerCase().includes(filters.search.toLowerCase())) return false;
         return true;
       });
+    }
+  },
+
+  async getMyIssues(): Promise<Issue[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/issues/mine`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+      });
+      const json: ApiResponse<{ issues: Issue[] }> = await res.json();
+      return json.data.issues || mockIssues;
+    } catch {
+      return mockIssues;
     }
   },
 
   async getIssueById(id: string): Promise<Issue | null> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("Network response was not ok");
       const json: ApiResponse<{ issue: Issue }> = await res.json();
       return json.data.issue;
     } catch {
@@ -56,27 +168,26 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/issues`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       const json: ApiResponse<{ issue: Issue }> = await res.json();
       return json.data.issue;
     } catch {
-      // In offline mock mode, synthesize new issue
       const synthesized: Issue = {
         id: `mock-${Date.now()}`,
         title: payload.title || "Reported Issue",
         description: payload.description || "",
         category: payload.category || "other",
         status: "submitted",
-        location: payload.location || { address: "Reported Location", area: "Local", city: "Lucknow" },
+        location: payload.location || { address: "Local Street", area: "City Ward", city: "Lucknow" },
         images: payload.images || [],
         resolutionImages: [],
         supportCount: 1,
         timeline: [
           {
             status: "submitted",
-            remarks: "Reported via Nivaran citizen portal",
+            remarks: "Reported via citizen portal",
             timestamp: new Date().toISOString(),
           },
         ],
@@ -87,11 +198,11 @@ export const api = {
     }
   },
 
-  async updateIssueStatus(id: string, status: IssueStatus, remarks?: string): Promise<boolean> {
+  async updateStatus(id: string, status: IssueStatus, remarks?: string): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ status, remarks }),
       });
       return res.ok;
@@ -100,30 +211,88 @@ export const api = {
     }
   },
 
-  async supportIssue(id: string): Promise<number> {
+  async assignDepartment(id: string, data: { departmentName: string; departmentCode?: string; officerName?: string }): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE_URL}/issues/${id}/support`, {
-        method: "POST",
+      const res = await fetch(`${API_BASE_URL}/issues/${id}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(data),
       });
-      const json: ApiResponse<{ supportCount: number }> = await res.json();
-      return json.data.supportCount;
+      return res.ok;
     } catch {
-      const found = mockIssues.find((i) => i.id === id || i._id === id);
-      return (found?.supportCount || 0) + 1;
+      return true;
     }
   },
 
-  // Stats & Schemes
-  async getOverviewStats(): Promise<OverviewStats> {
+  async attachEvidence(id: string, evidenceUrl: string, remarks?: string): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE_URL}/stats/overview`, { cache: "no-store" });
-      const json: ApiResponse<{ stats: OverviewStats }> = await res.json();
-      return json.data.stats || mockStats;
+      const res = await fetch(`${API_BASE_URL}/issues/${id}/evidence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ evidenceUrl, remarks }),
+      });
+      return res.ok;
+    } catch {
+      return true;
+    }
+  },
+
+  async supportIssue(id: string): Promise<{ supportCount: number; hasSupported: boolean }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/issues/${id}/support`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      const json: ApiResponse<{ supportCount: number; hasSupported: boolean }> = await res.json();
+      return json.data;
+    } catch {
+      const found = mockIssues.find((i) => i.id === id || i._id === id);
+      const nextCount = (found?.supportCount || 0) + 1;
+      return { supportCount: nextCount, hasSupported: true };
+    }
+  },
+
+  // Analytics (Phase 2 Module E)
+  async getAnalyticsOverview(): Promise<OverviewStats> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/analytics/overview`);
+      const json: ApiResponse<{ overview: OverviewStats }> = await res.json();
+      return json.data.overview || mockStats;
     } catch {
       return mockStats;
     }
   },
 
+  async getAnalyticsCategories(): Promise<Array<{ category: string; label: string; count: number; resolved: number; rate: number }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/analytics/categories`);
+      const json = await res.json();
+      return json.data.categories;
+    } catch {
+      return [
+        { category: "roads", label: "Roads & Traffic", count: 486, resolved: 362, rate: 74.4 },
+        { category: "water", label: "Water Supply", count: 325, resolved: 248, rate: 76.3 },
+        { category: "electricity", label: "Power & Streetlights", count: 216, resolved: 182, rate: 84.2 },
+        { category: "sanitation", label: "Waste Management", count: 184, resolved: 108, rate: 58.6 },
+      ];
+    }
+  },
+
+  async getAnalyticsDepartments(): Promise<Array<{ name: string; code: string; resolved: number; pending: number; avgDays: number }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/analytics/departments`);
+      const json = await res.json();
+      return json.data.departments;
+    } catch {
+      return [
+        { name: "Public Works Department (PWD)", code: "PWD", resolved: 412, pending: 82, avgDays: 3.1 },
+        { name: "Jal Sansthan (Water Board)", code: "DJB", resolved: 280, pending: 45, avgDays: 2.4 },
+        { name: "Madhyanchal Vidyut Vitran (MVVNL)", code: "MVVNL", resolved: 185, pending: 31, avgDays: 1.8 },
+      ];
+    }
+  },
+
+  // Schemes (Phase 2 Module F)
   async getSchemes(): Promise<Scheme[]> {
     try {
       const res = await fetch(`${API_BASE_URL}/stats/schemes`, { cache: "no-store" });
@@ -134,14 +303,8 @@ export const api = {
     }
   },
 
-  // Auth
-  async getCurrentUser(): Promise<User> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/me`);
-      const json: ApiResponse<{ user: User }> = await res.json();
-      return json.data.user || mockUser;
-    } catch {
-      return mockUser;
-    }
+  async getSchemeById(id: string): Promise<Scheme | null> {
+    const list = await this.getSchemes();
+    return list.find((s) => s.id === id) || null;
   },
 };

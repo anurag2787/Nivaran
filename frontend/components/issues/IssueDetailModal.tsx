@@ -158,19 +158,26 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => onStatusUpdate("in_progress", "Officer started field inspection")}
+                onClick={() => onStatusUpdate("in_progress", "Officer dispatched team & initiated field inspection")}
               >
-                Mark In Progress
+                Start Remediation
               </Button>
             )}
 
-            {userRole === "officer" && issue.status === "in_progress" && onStatusUpdate && (
+            {userRole === "officer" && (issue.status === "in_progress" || issue.status === "assigned") && onStatusUpdate && (
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() =>
-                  onStatusUpdate("awaiting_verification", "Repairs completed on site by maintenance crew")
-                }
+                onClick={() => {
+                  const proofUrl = prompt("Enter Resolution Evidence Image URL (optional):", "https://images.unsplash.com/photo-1541888946425-d0fbb18f15f7?auto=format&fit=crop&w=800&q=80");
+                  const notes = prompt("Enter Field Resolution Notes:", "Civil repair completed by zonal maintenance crew. Verified on-site.");
+                  if (notes !== null) {
+                    onStatusUpdate("awaiting_verification", notes || "Repairs completed on site by maintenance crew");
+                    if (proofUrl && !issue.resolutionImages?.includes(proofUrl)) {
+                      issue.resolutionImages = [...(issue.resolutionImages || []), proofUrl];
+                    }
+                  }
+                }}
               >
                 Submit Resolution Proof
               </Button>

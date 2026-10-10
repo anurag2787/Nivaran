@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IssueCard } from "@/components/issues/IssueCard";
@@ -8,11 +8,18 @@ import { IssueDetailModal } from "@/components/issues/IssueDetailModal";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Issue, IssueStatus } from "@/types";
 import { mockIssues } from "@/services/mockData";
+import { api } from "@/services/api";
 
 export default function OfficerPage() {
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [activeTab, setActiveTab] = useState<"assigned" | "in_progress" | "all">("all");
+
+  useEffect(() => {
+    api.getIssues().then((data) => {
+      if (data && data.length > 0) setIssues(data);
+    }).catch(() => {});
+  }, []);
 
   const filteredIssues = issues.filter((i) => {
     if (activeTab === "assigned") return i.status === "assigned" || i.status === "submitted";

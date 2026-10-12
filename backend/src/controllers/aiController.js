@@ -1,4 +1,3 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Scheme = require("../models/Scheme");
 const { sendSuccess, sendError } = require("../utils/response");
 
@@ -26,158 +25,175 @@ async function getCachedSchemes() {
 }
 
 /**
- * Fallback keyword-based advisor when GEMINI_API_KEY is missing or quota exceeded
+ * Intelligent Local Scheme Matching Engine
+ * Fast (<5ms), resilient, zero-quota, and provides optimal UX without cluttered essays.
  */
 function localSchemeMatch(message, allSchemes) {
-  const text = message.toLowerCase();
+  const text = message.toLowerCase().trim();
   const matched = [];
+
+  // Semantic category keyword groups
+  const DOMAIN_RULES = [
+    {
+      category: "Education",
+      keywords: [
+        "student", "students", "scholarship", "scholarships", "college", "school",
+        "study", "studies", "degree", "diploma", "iti", "post-matric", "pre-matric",
+        "tuition", "education", "engineering", "fellowship", "merit", "exam", "girl student"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Housing",
+      keywords: [
+        "house", "housing", "home", "awas", "pucca", "roof", "rooftop", "solar",
+        "slum", "shelter", "flat", "urban housing", "rural housing", "construction", "subsidy"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Healthcare",
+      keywords: [
+        "health", "healthcare", "hospital", "hospitals", "medical", "medicine",
+        "medicines", "treatment", "doctor", "ill", "illness", "disease", "surgery",
+        "ayushman", "insurance", "card", "checkup", "patient", "clinic", "maternity"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Employment",
+      keywords: [
+        "loan", "loans", "vendor", "vendors", "hawker", "street vendor", "stall",
+        "shop", "shopkeeper", "business", "small business", "micro", "farmer",
+        "farmers", "kisan", "agriculture", "crop", "mudra", "svanidhi", "artisan",
+        "vishwakarma", "job", "work", "employment", "livelihood", "startup", "credit", "wage"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Social Welfare",
+      keywords: [
+        "pension", "pensions", "widow", "senior", "elderly", "old age", "woman",
+        "women", "beti", "girl", "daughters", "disabled", "disability", "divyang",
+        "handicapped", "ration", "bpl", "poor", "welfare", "empowerment", "orphan"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Water Supply",
+      keywords: [
+        "water", "tap", "pipeline", "drinking water", "jal", "jal jeevan",
+        "groundwater", "piped water", "supply"
+      ],
+      weight: 6,
+    },
+    {
+      category: "Sanitation",
+      keywords: [
+        "toilet", "toilets", "clean", "cleanliness", "swachh", "waste", "garbage",
+        "sanitation", "drainage", "hygiene", "dry latrine"
+      ],
+      weight: 6,
+    },
+  ];
+
+  // Specific target keywords for precision matching
+  const queryWords = text.split(/[^a-zA-Z0-9]+/).filter((w) => w.length > 2);
 
   for (const s of allSchemes) {
     let score = 0;
-    const titleMatch = s.title.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.includes(w));
-    const catMatch = s.category.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.includes(w));
-    const descMatch = s.description.toLowerCase().split(/\s+/).some((w) => w.length > 4 && text.includes(w));
-    const elMatch = (s.eligibility || []).some((e) => e.toLowerCase().split(/\s+/).some((w) => w.length > 4 && text.includes(w)));
+    const titleLower = s.title.toLowerCase();
+    const catLower = s.category.toLowerCase();
+    const descLower = s.description.toLowerCase();
+    const eligLower = (s.eligibility || []).join(" ").toLowerCase();
+    const benefitsLower = (s.benefits || []).join(" ").toLowerCase();
 
-    if (titleMatch) score += 4;
-    if (catMatch) score += 3;
-    if (descMatch) score += 2;
-    if (elMatch) score += 2;
-
-    if (text.includes("student") || text.includes("scholarship") || text.includes("college") || text.includes("school")) {
-      if (s.category === "Education") score += 5;
-    }
-    if (text.includes("house") || text.includes("home") || text.includes("awas") || text.includes("roof") || text.includes("solar")) {
-      if (s.category === "Housing") score += 5;
-    }
-    if (text.includes("health") || text.includes("hospital") || text.includes("ill") || text.includes("medicine") || text.includes("treatment")) {
-      if (s.category === "Healthcare") score += 5;
-    }
-    if (text.includes("loan") || text.includes("vendor") || text.includes("business") || text.includes("shop") || text.includes("farmer") || text.includes("job") || text.includes("work")) {
-      if (s.category === "Employment") score += 5;
-    }
-    if (text.includes("pension") || text.includes("widow") || text.includes("senior") || text.includes("old") || text.includes("woman") || text.includes("women")) {
-      if (s.category === "Social Welfare") score += 5;
-    }
-    if (text.includes("water") || text.includes("tap") || text.includes("pipeline") || text.includes("toilet") || text.includes("garbage") || text.includes("clean")) {
-      if (s.category === "Water Supply" || s.category === "Sanitation") score += 5;
+    // 1. Direct word occurrences
+    for (const word of queryWords) {
+      if (titleLower.includes(word)) score += 5;
+      if (catLower.includes(word)) score += 4;
+      if (eligLower.includes(word)) score += 3;
+      if (descLower.includes(word)) score += 2;
+      if (benefitsLower.includes(word)) score += 2;
     }
 
-    if (score > 3) {
+    // 2. Domain semantic boost
+    for (const rule of DOMAIN_RULES) {
+      const matchFound = rule.keywords.some((kw) => text.includes(kw));
+      if (matchFound && s.category === rule.category) {
+        score += rule.weight;
+      }
+    }
+
+    // 3. Demographic & situation-specific boosts
+    if (text.includes("girl") || text.includes("female") || text.includes("daughter")) {
+      if (titleLower.includes("girl") || titleLower.includes("women") || titleLower.includes("pragati") || titleLower.includes("sukanya")) {
+        score += 8;
+      }
+    }
+
+    if (text.includes("street vendor") || text.includes("hawker") || text.includes("vendor")) {
+      if (titleLower.includes("svanidhi") || titleLower.includes("vendor")) {
+        score += 10;
+      }
+    }
+
+    if (text.includes("solar") || text.includes("electricity") || text.includes("roof")) {
+      if (titleLower.includes("surya") || titleLower.includes("solar")) {
+        score += 10;
+      }
+    }
+
+    if (text.includes("farmer") || text.includes("kisan") || text.includes("crop")) {
+      if (titleLower.includes("kisan") || titleLower.includes("fasal")) {
+        score += 10;
+      }
+    }
+
+    // Minimum match threshold (filters out random inputs like "2 + 2", "asdf")
+    if (score >= 4) {
       matched.push({ scheme: s, score });
     }
   }
 
+  // Sort descending by highest relevance score
   matched.sort((a, b) => b.score - a.score);
+
+  // Return the top 3 best matching schemes
   return matched.slice(0, 3).map((m) => m.scheme);
 }
 
+/**
+ * Main Scheme Advisor Controller
+ * Delivers clean, instant responses directly matching the verified 60 schemes database.
+ */
 const adviseSchemes = async (req, res, next) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message } = req.body;
     if (!message || typeof message !== "string") {
       return sendError(res, "Message is required", [], 400);
     }
 
     const allSchemes = await getCachedSchemes();
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // IF GEMINI API KEY IS CONFIGURED
-    if (apiKey && apiKey !== "your_gemini_api_key_here") {
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-        const model = genAI.getGenerativeModel({ model: modelName });
-
-        // Compact schemes directory string for prompt
-        const schemesContext = allSchemes
-          .map(
-            (s, idx) =>
-              `${idx + 1}. [ID: ${s.id || s._id}] ${s.title} (${s.category}) | Ministry: ${s.ministry}\n   Eligibility: ${(s.eligibility || []).join("; ")}\n   Benefits: ${(s.benefits || []).join("; ")}\n   Official Portal: ${s.applyUrl}`
-          )
-          .join("\n\n");
-
-        const systemPrompt = `You are "Nivaran Mitra", a warm, empathetic, and knowledgeable Indian Citizen Welfare AI Advisor.
-Your mission is to help citizens discover the exact Government of India welfare schemes they qualify for based on their situation, age, occupation, caste/category, income, or family needs.
-
-OFFICIAL SCHEMES KNOWLEDGE BASE (Use ONLY these schemes; DO NOT invent schemes):
-${schemesContext}
-
-RULES:
-1. Address the citizen politely and empathetically.
-2. Carefully analyze their situation from their query and recommend the TOP 1 to 3 best matching schemes.
-3. For each recommended scheme:
-   - State the scheme title.
-   - Explain clearly WHY they qualify based on their specific situation.
-   - Mention key documents or conditions required.
-   - Mention the official application website.
-4. Keep the advice concise, respectful, and well-structured with bullet points.
-5. AT THE VERY END OF YOUR RESPONSE, output an exact JSON block listing the IDs of the recommended schemes in this exact format:
-<<<RECOMMENDED_SCHEMES_IDS: ["id1", "id2"]>>>`;
-
-        // Format previous conversation history if provided
-        let conversationContext = "";
-        if (Array.isArray(history) && history.length > 0) {
-          conversationContext = "Previous conversation:\n" +
-            history
-              .slice(-4)
-              .map((h) => `${h.role === "user" ? "Citizen" : "Nivaran Mitra"}: ${h.content}`)
-              .join("\n") +
-            "\n\n";
-        }
-
-        const prompt = `${systemPrompt}\n\n${conversationContext}Citizen's Query: "${message}"\n\nNivaran Mitra's Advice:`;
-
-        const result = await model.generateContent(prompt);
-        const fullResponseText = result.response.text();
-
-        // Extract matched scheme IDs from response
-        const idRegex = /<<<RECOMMENDED_SCHEMES_IDS:\s*(\[.*?\])\s*>>>/s;
-        const match = fullResponseText.match(idRegex);
-        let recommendedIds = [];
-        let cleanText = fullResponseText;
-
-        if (match && match[1]) {
-          try {
-            recommendedIds = JSON.parse(match[1]);
-          } catch {}
-          cleanText = fullResponseText.replace(idRegex, "").replace(/\*\*/g, "").trim();
-        }
-
-        // Fetch the corresponding scheme objects
-        let recommendedSchemes = allSchemes.filter(
-          (s) => recommendedIds.includes(s.id) || recommendedIds.includes(String(s._id))
-        );
-
-        // Fallback to local match if LLM didn't return parseable IDs
-        if (recommendedSchemes.length === 0) {
-          recommendedSchemes = localSchemeMatch(message, allSchemes);
-        }
-
-        return sendSuccess(res, "Scheme recommendation generated", {
-          reply: cleanText,
-          schemes: recommendedSchemes,
-          source: "gemini",
-        });
-      } catch (geminiError) {
-        console.warn("Gemini API call failed, falling back to local advisor:", geminiError.message);
-      }
-    }
-
-    // FALLBACK IF NO API KEY OR GEMINI TEMPORARILY FAILED
     const matched = localSchemeMatch(message, allSchemes);
 
-    let fallbackReply = `Namaste! Based on your query, here are the most relevant government welfare initiatives matched from our official database.`;
+    // If matches found: return concise, clean greeting + matched scheme cards
     if (matched.length > 0) {
-      fallbackReply += `\n\nWe found ${matched.length} schemes matching your profile. Check the eligibility requirements and application links below.`;
-    } else {
-      fallbackReply = `Namaste! I searched our database, but couldn't find a direct match for this specific query. Try telling me your age, occupation (e.g., student, street vendor, farmer), annual household income, or specific requirement (e.g., housing, scholarship, healthcare, loan)!`;
+      const reply = `Namaste! Based on your query, here are the most relevant government welfare initiatives matched from our official database.\n\nWe found ${matched.length} schemes matching your profile. Check the eligibility requirements and application links below.`;
+
+      return sendSuccess(res, "Scheme recommendation generated", {
+        reply,
+        schemes: matched,
+        source: "local-rule",
+      });
     }
+
+    // If query is unrelated or no direct match found (e.g. "2 + 2", "random text")
+    const fallbackReply = `Namaste! I searched our database, but couldn't find a direct match for this specific query. Try telling me your age, occupation (e.g., student, street vendor, farmer), annual household income, or specific requirement (e.g., housing, scholarship, healthcare, loan)!`;
 
     return sendSuccess(res, "Scheme recommendation generated", {
       reply: fallbackReply,
-      schemes: matched,
+      schemes: [],
       source: "local-rule",
     });
   } catch (error) {

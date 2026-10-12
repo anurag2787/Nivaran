@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Newsreader, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { SchemeChatBot } from "@/components/schemes/SchemeChatBot";
 
 const newsreader = Newsreader({
   variable: "--font-serif",
@@ -38,6 +39,7 @@ export default function RootLayout({
         />
         <ThemeProvider>
           {children}
+          <SchemeChatBot />
         </ThemeProvider>
       </body>
     </html>

@@ -1,4 +1,4 @@
-# Nivaran — Complete Phase-Wise Development Roadmap
+# Nivaran - Complete Phase-Wise Development Roadmap
 
 [Civic Fix | Devpost](https://images.openai.com/static-rsc-4/HGTmB8-GnK5GavWsDSDEBRtzIAzg7CbZFKvoqWhh-HZeomdSr8EwGDR-U12R10nz64ToZIeF2zVM3ZiohW_LtqSTw20tViuks23y7dHSlOWBEaz2gbXdJ-AklNIbQWT9hx_MEXsuNhiI1jt_rhQnljmEtz6wR8X7c1HpyNNQF10?purpose=inline)
 
@@ -12,7 +12,7 @@ A citizen-centric civic engagement platform for reporting public issues, trackin
 
 For Nivaran, I recommend a modular, phase-wise development approach in which different teammates can build separate features simultaneously without constantly waiting for one another.
 
-The biggest mistake to avoid is dividing the project only by technology—for example, assigning one person the entire frontend and another the entire backend. That creates a bottleneck: the frontend developer cannot finish a feature until the backend developer finishes its APIs.
+The biggest mistake to avoid is dividing the project only by technology-for example, assigning one person the entire frontend and another the entire backend. That creates a bottleneck: the frontend developer cannot finish a feature until the backend developer finishes its APIs.
 
 Instead, we will define the architecture, database contracts, API contracts, and shared UI components first. After that, each feature can be developed independently using mock data, then connected to the backend through agreed interfaces.
 
@@ -91,7 +91,7 @@ Estimated duration: approximately 17–26 working days, with overlapping work. T
 
 The key is that Phases 2 and 3 can overlap heavily after Phase 1 defines the shared contracts. You should not wait for every frontend screen to be completed before starting the backend.
 
-# Phase 0 — Planning, scope and architecture
+# Phase 0 - Planning, scope and architecture
 
 Foundation for parallel work
 
@@ -174,7 +174,7 @@ Deliverables for Phase 0
 
 Exit condition: Every teammate knows what their module accepts, what it returns, and which shared components they must use.
 
-# Phase 1 — Project foundation and shared contracts
+# Phase 1 - Project foundation and shared contracts
 
 Goal: Create a working skeleton of both applications so every teammate can start independently.
 
@@ -323,13 +323,13 @@ This allows the citizen dashboard, issue details page, and admin dashboard to be
 
 Exit condition: Both applications run locally, shared types are committed, and the API contracts are documented.
 
-# Phase 2 — Parallel feature development
+# Phase 2 - Parallel feature development
 
 This is the most important phase for your team structure.
 
 Once Phase 1 is complete, divide the work into independent modules. Each teammate should be able to develop and test their module without waiting for another teammate to finish their implementation.
 
-## Workstream A — Authentication and user profiles
+## Workstream A - Authentication and user profiles
 
 Module A
 
@@ -392,7 +392,7 @@ Do not allow users to choose `admin` or `officer` freely on the public registrat
 - Officer/admin pages enforce the appropriate role.
 - The frontend can operate against a mock authentication service before the real endpoints are ready.
 
-## Workstream B — Citizen dashboard and issue reporting
+## Workstream B - Citizen dashboard and issue reporting
 
 Module B
 
@@ -471,7 +471,7 @@ Keep the UI components independent of the data source. That way, connecting the 
 
 A user can complete the entire reporting flow, see a confirmation, and view their issues using mock data.
 
-## Workstream C — Issue explorer, issue details and community support
+## Workstream C - Issue explorer, issue details and community support
 
 Module C
 
@@ -545,7 +545,7 @@ Automatic merging can create incorrect associations, so an administrator should 
 
 The user can browse issues, search and filter results, open a complete issue page, and support a community issue.
 
-## Workstream D — Officer and admin dashboard
+## Workstream D - Officer and admin dashboard
 
 Module D
 
@@ -621,7 +621,7 @@ The API must validate the role and permitted status transition on every request.
 
 An admin can assign an issue, and an authorized officer can update its progress. The changes must be reflected in the citizen's issue details when the same issue is fetched again.
 
-## Workstream E — Public analytics dashboard
+## Workstream E - Public analytics dashboard
 
 Module E
 
@@ -649,7 +649,7 @@ Build the following independently:
 
 ## Nivaran · Public Transparency
 
-Illustrative dashboard layout — not real statistics.
+Illustrative dashboard layout - not real statistics.
 
 # 1,248
 
@@ -704,7 +704,7 @@ You do not need to build complex MongoDB aggregation pipelines at the beginning.
 
 All charts, statistics and tables render correctly with mock data and can later consume the corresponding API responses without changing their visual components.
 
-## Workstream F — Government scheme discovery
+## Workstream F - Government scheme discovery
 
 Module F
 
@@ -779,7 +779,7 @@ There are two important shared dependencies:
 
 A teammate can begin building the UI before the actual API exists, as long as the input and output structures have been agreed upon.
 
-# Phase 3 — Backend and MongoDB implementation
+# Phase 3 - Backend and MongoDB implementation
 
 Goal: Connect the independently developed modules to one functioning application.
 
@@ -940,7 +940,7 @@ Every status change should also create an `IssueUpdate` record.
 - Unauthorized users cannot perform restricted actions.
 - Public endpoints do not leak private account information.
 
-# Phase 4 — Integrate the distinctive features
+# Phase 4 - Integrate the distinctive features
 
 The core CRUD workflow should work before you start this phase.
 
@@ -1040,7 +1040,7 @@ Show the official link and last-verified date on each scheme. Do not claim that 
 
 The community-support workflow, resolution-verification flow and analytics all work with persisted data. The map and richer scheme recommendations are optional enhancements.
 
-# Phase 5 — Frontend polish, integration testing and bug fixing
+# Phase 5 - Frontend polish, integration testing and bug fixing
 
 This is not a cosmetic afterthought. Your professor will judge the experience they can see, so this phase deserves real time.
 
@@ -1123,7 +1123,7 @@ Reserve the final working days for integration failures, inconsistent data, brok
 
 Exit condition: The application works from beginning to end without requiring manual database edits during the presentation.
 
-# Phase 6 — Seed data, demo preparation and presentation
+# Phase 6 - Seed data, demo preparation and presentation
 
 Goal: Make the project easy to understand in a short live demonstration.
 
@@ -1203,25 +1203,25 @@ A single connected example is more persuasive than clicking randomly through ten
 
 You haven't specified your team size, so here is a division for a team of five. If you have three or four members, combine the roles as explained below.
 
-### Member 1 — Integration lead + authentication
+### Member 1 - Integration lead + authentication
 
 Owns the shared contracts, repository structure, JWT authentication, authorization middleware, API conventions and final integration.
 
 Also reviews pull requests and resolves conflicts between modules.
 
-### Member 2 — Citizen experience
+### Member 2 - Citizen experience
 
 Owns the landing page, citizen dashboard, reporting form, personal issue list, profile and related frontend service layer.
 
-### Member 3 — Issue explorer and community
+### Member 3 - Issue explorer and community
 
 Owns issue search, filters, issue details, status timeline, support interactions and the resolution-verification UI.
 
-### Member 4 — Officer/admin workflow
+### Member 4 - Officer/admin workflow
 
 Owns issue assignment, officer dashboard, admin tables, department management and backend issue-workflow endpoints.
 
-### Member 5 — Analytics and schemes
+### Member 5 - Analytics and schemes
 
 Owns the public dashboard, charts, scheme discovery, seed data and supporting backend analytics/scheme endpoints.
 

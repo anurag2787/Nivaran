@@ -1,4 +1,4 @@
-# Nivaran — Civic Issue Resolution & Grievance Redressal
+# Nivaran - Civic Issue Resolution & Grievance Redressal
 
 Transparent civic issue reporting and municipal grievance resolution platform.
 

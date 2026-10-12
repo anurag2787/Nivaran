@@ -20,5 +20,6 @@ router.use("/issues", issueRoutes);
 router.use("/stats", statsRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/ai", require("./aiRoutes"));
+router.use("/upload", require("./uploadRoutes"));
 
 module.exports = router;

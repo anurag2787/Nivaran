@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Issue, IssueCategory } from "@/types";
+import React, { useState, useRef } from "react";
+import { ImageMetadata, Issue, IssueCategory } from "@/types";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { api } from "@/services/api";
@@ -32,7 +32,18 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
   const [locationStatus, setLocationStatus] = useState<"idle" | "detecting" | "success" | "error">("idle");
   const [locationMsg, setLocationMsg] = useState("");
 
+  // Image upload state
+  const [imageInputMode, setImageInputMode] = useState<"upload" | "url">("upload");
   const [imageUrl, setImageUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
+  const [uploadedImageMeta, setUploadedImageMeta] = useState<ImageMetadata | null>(null);
+  const [uploadError, setUploadError] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
@@ -137,6 +148,74 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
     setLocationMsg("");
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError("");
+
+    // Validate type
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setUploadError("Invalid file format. Please upload JPG, PNG, or WEBP.");
+      return;
+    }
+
+    // Validate size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setUploadError(`File is too large (${sizeMB}MB). Maximum allowed size is 5MB.`);
+      return;
+    }
+
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    // Auto-upload
+    await performUpload(file);
+  };
+
+  const performUpload = async (file: File) => {
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadError("");
+
+    try {
+      const meta = await api.uploadImage(file, {
+        onProgress: (percent) => setUploadProgress(Math.max(10, percent)),
+      });
+      setUploadedImageUrl(meta.secureUrl || meta.url);
+      setUploadedImageMeta(meta);
+      setUploadProgress(100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload image. Please try again or provide an image URL.";
+      setUploadError(msg);
+      setUploadProgress(0);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    setPreviewUrl("");
+    setUploadedImageUrl("");
+    setUploadedImageMeta(null);
+    setUploadProgress(0);
+    setUploadError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleTriggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim() || !address.trim()) {
@@ -163,6 +242,20 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
         }
       }
 
+      let finalImages: string[] = [];
+      let finalDetails: ImageMetadata[] = [];
+
+      if (imageInputMode === "upload") {
+        if (uploadedImageUrl) {
+          finalImages = [uploadedImageUrl];
+          if (uploadedImageMeta) finalDetails = [uploadedImageMeta];
+        }
+      } else {
+        if (imageUrl.trim()) {
+          finalImages = [imageUrl.trim()];
+        }
+      }
+
       const payload: Partial<Issue> = {
         title: title.trim(),
         description: description.trim(),
@@ -174,11 +267,8 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
           pincode: pincode.trim() || "226001",
           ...(coordinates ? { coordinates } : {}),
         },
-        images: imageUrl.trim()
-          ? [imageUrl.trim()]
-          : [
-              "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&auto=format&fit=crop&q=60",
-            ],
+        images: finalImages,
+        imageDetails: finalDetails,
         reporter: reporterInfo,
         reporterId: reporterInfo?.id,
       };
@@ -193,6 +283,7 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
       setAddress("");
       setArea("");
       setImageUrl("");
+      handleRemoveImage();
       setCoordinates(null);
       setLocationStatus("idle");
     } catch (err: unknown) {
@@ -410,13 +501,186 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
         />
       </div>
 
-      <Input
-        label="Photo Proof URL (Optional)"
-        placeholder="https://images.unsplash.com/..."
-        value={imageUrl}
-        onChange={(e) => setImageUrl(e.target.value)}
-        helperText="In production, citizens take or upload photos directly from mobile camera."
-      />
+      {/* Photo Proof Section (Upload or URL) */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+            Photo Proof Evidence <span className="text-slate-400 font-normal normal-case">(Optional)</span>
+          </label>
+          {/* Segmented Mode Switcher */}
+          <div className="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setImageInputMode("upload")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                imageInputMode === "upload"
+                  ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              }`}
+            >
+              📷 Upload Photo
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageInputMode("url")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                imageInputMode === "url"
+                  ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              }`}
+            >
+              🔗 Image URL
+            </button>
+          </div>
+        </div>
+
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
+          capture="environment"
+          onChange={handleFileSelect}
+          className="hidden"
+          disabled={isUploading || isSubmitting}
+        />
+
+        {imageInputMode === "upload" ? (
+          <div>
+            {!previewUrl ? (
+              /* Drop / Click Trigger Area */
+              <div
+                onClick={handleTriggerFileInput}
+                className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-50/50 dark:bg-slate-900/50 group"
+              >
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                  📸
+                </div>
+                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="text-emerald-600 dark:text-emerald-400 hover:underline">Choose Image</span> or take photo
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Supports JPG, PNG, WEBP (Max 5MB). Photo proof is optional.
+                </p>
+                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors">
+                  <span>📁 Choose Image / Upload Photo</span>
+                </div>
+              </div>
+            ) : (
+              /* Image Selected & Preview Card */
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <img
+                      src={previewUrl}
+                      alt="Selected issue preview"
+                      className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-xs">
+                        {selectedFile?.name || "Selected photo"}
+                      </p>
+                      {selectedFile && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type}
+                        </p>
+                      )}
+
+                      {/* Status Badges */}
+                      <div className="mt-1.5">
+                        {isUploading ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                            <span className="w-2.5 h-2.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            Uploading to Cloudinary... ({uploadProgress}%)
+                          </span>
+                        ) : uploadedImageUrl ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                            ✓ Uploaded to Cloudinary
+                          </span>
+                        ) : uploadError ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400 font-semibold">
+                            ⚠️ Upload failed
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    {uploadError && selectedFile && (
+                      <button
+                        type="button"
+                        onClick={() => performUpload(selectedFile)}
+                        disabled={isUploading}
+                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                      >
+                        ↻ Retry
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleTriggerFileInput}
+                      disabled={isUploading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      Replace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      disabled={isUploading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                {isUploading && (
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="mt-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
+                <span>⚠️ {uploadError}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* URL Input Option */
+          <div>
+            <Input
+              label=""
+              placeholder="https://images.unsplash.com/... or paste image URL"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              helperText="Enter a publicly accessible web image URL."
+            />
+            {imageUrl && (
+              <div className="mt-2 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-850 max-w-xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Preview
+                </span>
+                <img
+                  src={imageUrl}
+                  alt="URL Preview"
+                  className="w-full h-28 object-cover rounded-lg"
+                  onError={() => {}}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="pt-2 flex items-center justify-end gap-3">
         {onCancel && (

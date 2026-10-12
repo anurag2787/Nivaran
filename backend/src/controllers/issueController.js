@@ -233,7 +233,16 @@ const getIssueById = async (req, res, next) => {
 
 const createIssue = async (req, res, next) => {
   try {
-    const { title, description, category, location, images = [], reporter, reporterId: bodyReporterId } = req.body;
+    const {
+      title,
+      description,
+      category,
+      location,
+      images = [],
+      imageDetails = [],
+      reporter,
+      reporterId: bodyReporterId,
+    } = req.body;
 
     const reporterId =
       req.user?.id ||
@@ -283,7 +292,9 @@ const createIssue = async (req, res, next) => {
         phone: reporterPhone,
       },
       images,
+      imageDetails: Array.isArray(imageDetails) ? imageDetails : [],
       resolutionImages: [],
+      resolutionImageDetails: [],
       supportCount: 1,
       supporters: [reporterId],
       timeline: [
@@ -320,7 +331,7 @@ const createIssue = async (req, res, next) => {
 const updateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, remarks = "", evidenceUrl = "" } = req.body;
+    const { status, remarks = "", evidenceUrl = "", evidenceDetails = null } = req.body;
 
     const validStatuses = [
       "submitted",
@@ -347,7 +358,12 @@ const updateStatus = async (req, res, next) => {
           timestamp: new Date(),
         });
         if (evidenceUrl) {
+          updatedIssue.resolutionImages = updatedIssue.resolutionImages || [];
           updatedIssue.resolutionImages.push(evidenceUrl);
+          if (evidenceDetails) {
+            updatedIssue.resolutionImageDetails = updatedIssue.resolutionImageDetails || [];
+            updatedIssue.resolutionImageDetails.push(evidenceDetails);
+          }
         }
         await updatedIssue.save();
       }
@@ -363,7 +379,12 @@ const updateStatus = async (req, res, next) => {
           timestamp: new Date().toISOString(),
         });
         if (evidenceUrl) {
+          inMemoryIssues[idx].resolutionImages = inMemoryIssues[idx].resolutionImages || [];
           inMemoryIssues[idx].resolutionImages.push(evidenceUrl);
+          if (evidenceDetails) {
+            inMemoryIssues[idx].resolutionImageDetails = inMemoryIssues[idx].resolutionImageDetails || [];
+            inMemoryIssues[idx].resolutionImageDetails.push(evidenceDetails);
+          }
         }
         updatedIssue = inMemoryIssues[idx];
       }
@@ -444,25 +465,56 @@ const assignDepartment = async (req, res, next) => {
 const attachEvidence = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { evidenceUrl, remarks = "Official resolution photo evidence attached" } = req.body;
+    const { evidenceUrl, remarks = "Official resolution photo evidence attached", evidenceDetails = null } = req.body;
 
     if (!evidenceUrl) {
       return sendError(res, "evidenceUrl is required", [], 400);
     }
 
+    let updatedIssue;
+    try {
+      updatedIssue = await Issue.findById(id);
+      if (updatedIssue) {
+        updatedIssue.resolutionImages = updatedIssue.resolutionImages || [];
+        updatedIssue.resolutionImages.push(evidenceUrl);
+        if (evidenceDetails) {
+          updatedIssue.resolutionImageDetails = updatedIssue.resolutionImageDetails || [];
+          updatedIssue.resolutionImageDetails.push(evidenceDetails);
+        }
+        updatedIssue.status = "awaiting_verification";
+        updatedIssue.timeline.push({
+          status: "awaiting_verification",
+          remarks,
+          timestamp: new Date(),
+        });
+        await updatedIssue.save();
+      }
+    } catch {}
+
     const idx = inMemoryIssues.findIndex((item) => item.id === id || item._id === id);
     if (idx !== -1) {
+      inMemoryIssues[idx].resolutionImages = inMemoryIssues[idx].resolutionImages || [];
       inMemoryIssues[idx].resolutionImages.push(evidenceUrl);
+      if (evidenceDetails) {
+        inMemoryIssues[idx].resolutionImageDetails = inMemoryIssues[idx].resolutionImageDetails || [];
+        inMemoryIssues[idx].resolutionImageDetails.push(evidenceDetails);
+      }
       inMemoryIssues[idx].status = "awaiting_verification";
       inMemoryIssues[idx].timeline.push({
         status: "awaiting_verification",
         remarks,
         timestamp: new Date().toISOString(),
       });
-      return sendSuccess(res, "Resolution evidence attached", { issue: inMemoryIssues[idx] });
+      if (!updatedIssue) {
+        updatedIssue = inMemoryIssues[idx];
+      }
     }
 
-    return sendError(res, "Issue not found", [], 404);
+    if (!updatedIssue) {
+      return sendError(res, "Issue not found", [], 404);
+    }
+
+    return sendSuccess(res, "Resolution evidence attached", { issue: updatedIssue });
   } catch (error) {
     next(error);
   }
@@ -471,7 +523,37 @@ const attachEvidence = async (req, res, next) => {
 const supportIssue = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const currentUserId = req.user?.id || `user-anon-${Date.now()}`;
+    const currentUserId = req.user?.id || req.user?._id || `user-anon-${Date.now()}`;
+
+    // Try MongoDB first
+    let dbIssue = null;
+    try {
+      dbIssue = await Issue.findById(id);
+    } catch {}
+
+    if (dbIssue) {
+      dbIssue.supporters = dbIssue.supporters || [];
+      const hasAlready = dbIssue.supporters.includes(currentUserId);
+      if (hasAlready) {
+        dbIssue.supporters = dbIssue.supporters.filter((uid) => uid !== currentUserId);
+        dbIssue.supportCount = Math.max(0, (dbIssue.supportCount || 1) - 1);
+        await dbIssue.save();
+        return sendSuccess(res, "Support removed", {
+          issueId: id,
+          supportCount: dbIssue.supportCount,
+          hasSupported: false,
+        });
+      } else {
+        dbIssue.supporters.push(currentUserId);
+        dbIssue.supportCount = (dbIssue.supportCount || 0) + 1;
+        await dbIssue.save();
+        return sendSuccess(res, "Issue supported successfully", {
+          issueId: id,
+          supportCount: dbIssue.supportCount,
+          hasSupported: true,
+        });
+      }
+    }
 
     let found = inMemoryIssues.find((item) => item.id === id || item._id === id);
     if (found) {

@@ -1,14 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
-import { Issue, MUNICIPAL_DEPARTMENTS } from "@/types";
+import React, { useState, useRef } from "react";
+import { ImageMetadata, Issue, MUNICIPAL_DEPARTMENTS } from "@/types";
 import { CategoryBadge, StatusBadge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { api } from "@/services/api";
 
 interface IssueDetailModalProps {
   issue: Issue | null;
   onClose: () => void;
-  onStatusUpdate?: (status: Issue["status"], remarks: string, evidenceUrl?: string) => void;
+  onStatusUpdate?: (
+    status: Issue["status"],
+    remarks: string,
+    evidenceUrl?: string,
+    evidenceDetails?: ImageMetadata
+  ) => void;
   onReassignDepartment?: (
     issueId: string,
     department: { name: string; code: string; remarks: string }
@@ -44,11 +50,18 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
   userRole = "citizen",
   officerDepartment,
 }) => {
-  const [modalMode, setModalMode] = useState<"view" | "resolve" | "reallot">("view");
-
   // Resolution form state
+  const [modalMode, setModalMode] = useState<"view" | "resolve" | "reallot">("view");
   const [resolutionRemarks, setResolutionRemarks] = useState("");
   const [resolutionPhoto, setResolutionPhoto] = useState("");
+  const [resolvePhotoInputMode, setResolvePhotoInputMode] = useState<"upload" | "url">("upload");
+  const [resolutionFile, setResolutionFile] = useState<File | null>(null);
+  const [resolutionPreviewUrl, setResolutionPreviewUrl] = useState<string>("");
+  const [isUploadingResolution, setIsUploadingResolution] = useState<boolean>(false);
+  const [resolutionUploadProgress, setResolutionUploadProgress] = useState<number>(0);
+  const [uploadedResolutionMeta, setUploadedResolutionMeta] = useState<ImageMetadata | null>(null);
+  const [resolutionUploadError, setResolutionUploadError] = useState<string>("");
+  const resolutionFileInputRef = useRef<HTMLInputElement>(null);
   const [resolveError, setResolveError] = useState("");
 
   // Reallotment form state
@@ -62,6 +75,73 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
   const currentDeptName = issue.assignedDepartment?.name || "Pending Municipal Routing";
 
+  const handleResolutionFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setResolutionUploadError("");
+
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setResolutionUploadError("Invalid file format. Please upload JPG, PNG, or WEBP.");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setResolutionUploadError(`File is too large (${sizeMB}MB). Maximum allowed size is 5MB.`);
+      return;
+    }
+
+    setResolutionFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setResolutionPreviewUrl(objectUrl);
+
+    // Auto-upload
+    await performResolutionUpload(file);
+  };
+
+  const performResolutionUpload = async (file: File) => {
+    setIsUploadingResolution(true);
+    setResolutionUploadProgress(10);
+    setResolutionUploadError("");
+
+    try {
+      const meta = await api.uploadImage(file, {
+        folder: "nivaran/resolutions",
+        onProgress: (percent) => setResolutionUploadProgress(Math.max(10, percent)),
+      });
+      setResolutionPhoto(meta.secureUrl || meta.url);
+      setUploadedResolutionMeta(meta);
+      setResolutionUploadProgress(100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload image. Please try again or paste image URL.";
+      setResolutionUploadError(msg);
+      setResolutionUploadProgress(0);
+    } finally {
+      setIsUploadingResolution(false);
+    }
+  };
+
+  const handleRemoveResolutionImage = () => {
+    setResolutionFile(null);
+    setResolutionPreviewUrl("");
+    setResolutionPhoto("");
+    setUploadedResolutionMeta(null);
+    setResolutionUploadProgress(0);
+    setResolutionUploadError("");
+    if (resolutionFileInputRef.current) {
+      resolutionFileInputRef.current.value = "";
+    }
+  };
+
+  const handleTriggerResolutionFileInput = () => {
+    if (resolutionFileInputRef.current) {
+      resolutionFileInputRef.current.click();
+    }
+  };
+
   const handleResolveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolutionRemarks.trim()) {
@@ -69,12 +149,18 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
       return;
     }
     setResolveError("");
+    const finalPhoto = resolutionPhoto.trim() || undefined;
     if (onStatusUpdate) {
-      onStatusUpdate("resolved", resolutionRemarks.trim(), resolutionPhoto.trim() || undefined);
+      onStatusUpdate(
+        "resolved",
+        resolutionRemarks.trim(),
+        finalPhoto,
+        uploadedResolutionMeta || undefined
+      );
     }
     setModalMode("view");
     setResolutionRemarks("");
-    setResolutionPhoto("");
+    handleRemoveResolutionImage();
   };
 
   const handleReallotSubmit = (e: React.FormEvent) => {
@@ -168,44 +254,176 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 />
               </div>
 
-              {/* Optional Photo Proof */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                  Field Photo Evidence URL <span className="text-slate-400 font-normal normal-case">(Optional)</span>
-                </label>
-                <input
-                  type="url"
-                  value={resolutionPhoto}
-                  onChange={(e) => setResolutionPhoto(e.target.value)}
-                  placeholder="https://images.unsplash.com/... or paste image URL"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
-                />
-
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>Quick demo photos:</span>
-                  {SAMPLE_PROOF_PHOTOS.map((sample, idx) => (
+              {/* Optional Photo Proof with Cloudinary Upload or URL */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Field Photo Evidence <span className="text-slate-400 font-normal normal-case">(Optional)</span>
+                  </label>
+                  <div className="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
                     <button
-                      key={idx}
                       type="button"
-                      onClick={() => setResolutionPhoto(sample.url)}
-                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                      onClick={() => setResolvePhotoInputMode("upload")}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer text-[11px] ${
+                        resolvePhotoInputMode === "upload"
+                          ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
                     >
-                      {sample.label}
+                      📷 Upload Photo
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setResolvePhotoInputMode("url")}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer text-[11px] ${
+                        resolvePhotoInputMode === "url"
+                          ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                    >
+                      🔗 Photo URL
+                    </button>
+                  </div>
                 </div>
 
-                {resolutionPhoto && (
-                  <div className="mt-3 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 max-w-xs">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      Photo Preview
-                    </span>
-                    <img
-                      src={resolutionPhoto}
-                      alt="Resolution preview"
-                      className="w-full h-32 object-cover rounded-lg"
-                      onError={() => {}}
+                {/* Hidden File Input */}
+                <input
+                  ref={resolutionFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  capture="environment"
+                  onChange={handleResolutionFileSelect}
+                  className="hidden"
+                  disabled={isUploadingResolution}
+                />
+
+                {resolvePhotoInputMode === "upload" ? (
+                  <div>
+                    {!resolutionPreviewUrl ? (
+                      <div
+                        onClick={handleTriggerResolutionFileInput}
+                        className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-xl p-4 text-center cursor-pointer transition-all bg-slate-50/50 dark:bg-slate-800/40"
+                      >
+                        <div className="text-xl mb-1">📸</div>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          <span className="text-emerald-600 dark:text-emerald-400 hover:underline">Choose Resolution Photo</span> or take photo
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          JPG, PNG, WEBP (Max 5MB)
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={resolutionPreviewUrl}
+                              alt="Resolution preview"
+                              className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                                {resolutionFile?.name || "Resolution evidence"}
+                              </p>
+                              {resolutionFile && (
+                                <p className="text-[10px] text-slate-400">
+                                  {(resolutionFile.size / (1024 * 1024)).toFixed(2)} MB
+                                </p>
+                              )}
+                              <div className="mt-1">
+                                {isUploadingResolution ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                                    <span className="w-2 h-2 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    Uploading ({resolutionUploadProgress}%)
+                                  </span>
+                                ) : resolutionPhoto ? (
+                                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                    ✓ Uploaded to Cloudinary
+                                  </span>
+                                ) : resolutionUploadError ? (
+                                  <span className="text-[11px] text-rose-600 font-semibold">
+                                    ⚠️ Upload failed
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={handleTriggerResolutionFileInput}
+                              disabled={isUploadingResolution}
+                              className="px-2 py-1 text-[11px] font-semibold rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 cursor-pointer"
+                            >
+                              Replace
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleRemoveResolutionImage}
+                              disabled={isUploadingResolution}
+                              className="px-2 py-1 text-[11px] font-semibold rounded bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 cursor-pointer"
+                            >
+                              ✕ Remove
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        {isUploadingResolution && (
+                          <div className="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full overflow-hidden">
+                            <div
+                              className="bg-emerald-500 h-full transition-all duration-300"
+                              style={{ width: `${resolutionUploadProgress}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {resolutionUploadError && (
+                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                        ⚠️ {resolutionUploadError}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="url"
+                      value={resolutionPhoto}
+                      onChange={(e) => setResolutionPhoto(e.target.value)}
+                      placeholder="https://images.unsplash.com/... or paste image URL"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
                     />
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>Quick demo photos:</span>
+                      {SAMPLE_PROOF_PHOTOS.map((sample, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setResolutionPhoto(sample.url)}
+                          className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                        >
+                          {sample.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {resolutionPhoto && (
+                      <div className="mt-3 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 max-w-xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Photo Preview
+                        </span>
+                        <img
+                          src={resolutionPhoto}
+                          alt="Resolution preview"
+                          className="w-full h-32 object-cover rounded-lg"
+                          onError={() => {}}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

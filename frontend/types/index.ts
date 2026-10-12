@@ -148,12 +148,24 @@ export interface Issue {
     name: string;
   };
   images: string[];
+  imageDetails?: ImageMetadata[];
   resolutionImages: string[];
+  resolutionImageDetails?: ImageMetadata[];
   supportCount: number;
   hasSupported?: boolean;
   timeline: IssueTimelineEvent[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ImageMetadata {
+  url: string;
+  secureUrl: string;
+  publicId: string;
+  format?: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface Department {

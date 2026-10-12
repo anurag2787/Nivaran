@@ -97,7 +97,31 @@ const issueSchema = new mongoose.Schema(
       default: null,
     },
     images: [{ type: String }],
+    imageDetails: [
+      {
+        url: { type: String },
+        secureUrl: { type: String },
+        publicId: { type: String },
+        format: { type: String },
+        bytes: { type: Number },
+        width: { type: Number },
+        height: { type: Number },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     resolutionImages: [{ type: String }],
+    resolutionImageDetails: [
+      {
+        url: { type: String },
+        secureUrl: { type: String },
+        publicId: { type: String },
+        format: { type: String },
+        bytes: { type: Number },
+        width: { type: Number },
+        height: { type: Number },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     supportCount: {
       type: Number,
       default: 0,

@@ -20,7 +20,9 @@ router.get("/:id", getIssueById);
 // Reporting & interactions
 router.post("/", optionalAuth, createIssue);
 router.patch("/:id/status", updateStatus);
+router.put("/:id/status", updateStatus);
 router.patch("/:id/assign", assignDepartment);
+router.put("/:id/assign", assignDepartment);
 router.post("/:id/evidence", attachEvidence);
 router.post("/:id/support", supportIssue);
 

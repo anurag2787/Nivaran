@@ -10,6 +10,7 @@ import {
   User,
   Issue,
   IssueStatus,
+  ImageMetadata,
   MUNICIPAL_DEPARTMENTS,
   MunicipalDepartment,
 } from "@/types";
@@ -134,13 +135,14 @@ export default function OfficerPage() {
   const handleStatusChange = async (
     status: IssueStatus,
     remarks: string,
-    evidenceUrl?: string
+    evidenceUrl?: string,
+    evidenceDetails?: ImageMetadata
   ) => {
     if (!selectedIssue) return;
     const targetId = selectedIssue.id || selectedIssue._id || "";
 
     try {
-      await api.updateStatus(targetId, status, remarks, evidenceUrl);
+      await api.updateStatus(targetId, status, remarks, evidenceUrl, evidenceDetails);
     } catch {}
 
     const updatedImages =

@@ -1,4 +1,4 @@
-import { ApiResponse, Issue, IssueStatus, OverviewStats, Scheme, User } from "../types";
+import { ApiResponse, ImageMetadata, Issue, IssueStatus, OverviewStats, Scheme, User } from "../types";
 import { mockIssues, mockSchemes, mockStats, mockUser } from "./mockData";
 
 const API_BASE_URL =
@@ -286,6 +286,68 @@ export const api = {
     }
   },
 
+  async uploadImage(
+    file: File,
+    options?: { folder?: string; onProgress?: (percent: number) => void }
+  ): Promise<ImageMetadata> {
+    const formData = new FormData();
+    formData.append("image", file);
+    if (options?.folder) {
+      formData.append("folder", options.folder);
+    }
+
+    if (options?.onProgress && typeof XMLHttpRequest !== "undefined") {
+      return new Promise<ImageMetadata>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_BASE_URL}/upload`);
+
+        const authHeaders = getAuthHeaders();
+        Object.entries(authHeaders).forEach(([key, val]) => {
+          xhr.setRequestHeader(key, val);
+        });
+
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable && options.onProgress) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            options.onProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          try {
+            const json: ApiResponse<ImageMetadata> = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && json.success) {
+              resolve(json.data);
+            } else {
+              reject(new Error(json.message || `Upload failed with status ${xhr.status}`));
+            }
+          } catch {
+            reject(new Error(`Server responded with invalid JSON (${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error("Network error during file upload. Please check your internet connection."));
+        };
+
+        xhr.send(formData);
+      });
+    }
+
+    const res = await fetch(`${API_BASE_URL}/upload`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: formData,
+    });
+
+    const json: ApiResponse<ImageMetadata> = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || "Failed to upload image to Cloudinary");
+    }
+
+    return json.data;
+  },
+
   // Issues (Phase 2 Modules B, C, D)
   async getIssues(filters?: { status?: string; category?: string; search?: string; sortBy?: string }): Promise<Issue[]> {
     try {
@@ -406,12 +468,18 @@ export const api = {
     }
   },
 
-  async updateStatus(id: string, status: IssueStatus, remarks?: string, evidenceUrl?: string): Promise<boolean> {
+  async updateStatus(
+    id: string,
+    status: IssueStatus,
+    remarks?: string,
+    evidenceUrl?: string,
+    evidenceDetails?: ImageMetadata
+  ): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ status, remarks, evidenceUrl }),
+        body: JSON.stringify({ status, remarks, evidenceUrl, evidenceDetails }),
       });
       return res.ok;
     } catch {
@@ -432,12 +500,17 @@ export const api = {
     }
   },
 
-  async attachEvidence(id: string, evidenceUrl: string, remarks?: string): Promise<boolean> {
+  async attachEvidence(
+    id: string,
+    evidenceUrl: string,
+    remarks?: string,
+    evidenceDetails?: ImageMetadata
+  ): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}/evidence`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ evidenceUrl, remarks }),
+        body: JSON.stringify({ evidenceUrl, remarks, evidenceDetails }),
       });
       return res.ok;
     } catch {

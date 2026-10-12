@@ -8,6 +8,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { mockSchemes } from "@/services/mockData";
 import { api } from "@/services/api";
 import { Scheme } from "@/types";
+import { SchemeChatBot } from "@/components/schemes/SchemeChatBot";
 
 const SCHEME_CATEGORIES = [
   { label: "All Schemes", value: "All", icon: "🇮🇳" },
@@ -25,6 +26,7 @@ export default function SchemesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAiAdvisorOpen, setIsAiAdvisorOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -88,23 +90,32 @@ export default function SchemesPage() {
               Explore 60 verified central & state citizen assistance initiatives, housing subsidies, clean water missions, healthcare benefits, and educational grants.
             </p>
 
-            <div className="mt-6 max-w-xl flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                placeholder="Search schemes by name, keyword, or ministry..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-4 py-3 text-sm bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 backdrop-blur-xs font-medium"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition-colors"
-                >
-                  Clear
-                </button>
-              )}
+            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1 max-w-xl flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Search schemes by name, keyword, or ministry..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full px-4 py-3 text-sm bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 backdrop-blur-xs font-medium"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAiAdvisorOpen(true)}
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <span>✨ Ask Nivaran AI</span>
+              </button>
             </div>
           </div>
         </div>
@@ -252,6 +263,12 @@ export default function SchemesPage() {
             ))}
           </div>
         )}
+
+        {/* AI Scheme Advisor Widget (Gemini) */}
+        <SchemeChatBot
+          isOpenExternal={isAiAdvisorOpen}
+          onCloseExternal={() => setIsAiAdvisorOpen(false)}
+        />
       </main>
 
       <Footer />

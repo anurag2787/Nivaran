@@ -19,5 +19,6 @@ router.use("/auth", authRoutes);
 router.use("/issues", issueRoutes);
 router.use("/stats", statsRoutes);
 router.use("/analytics", analyticsRoutes);
+router.use("/ai", require("./aiRoutes"));
 
 module.exports = router;

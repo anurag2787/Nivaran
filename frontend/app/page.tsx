@@ -8,12 +8,12 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { IssueCard } from "@/components/issues/IssueCard";
 import { IssueFilter } from "@/components/issues/IssueFilter";
 import { IssueDetailModal } from "@/components/issues/IssueDetailModal";
-import { Issue, OverviewStats, UserRole } from "@/types";
+import { Issue, OverviewStats, User, UserRole } from "@/types";
 import { mockIssues, mockStats } from "@/services/mockData";
 import { api } from "@/services/api";
 
 export default function HomePage() {
-  const [role, setRole] = useState<UserRole>("citizen");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [stats, setStats] = useState<OverviewStats>(mockStats);
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -29,6 +29,15 @@ export default function HomePage() {
   const [trackError, setTrackError] = useState("");
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nivaran-user");
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch {}
+      }
+    }
+
     const loadData = async () => {
       const fetchedIssues = await api.getIssues();
       if (fetchedIssues && fetchedIssues.length > 0) {
@@ -78,7 +87,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
-      <Navbar currentRole={role} onRoleChange={(r) => setRole(r)} />
+      <Navbar />
 
       {/* Live Civic News Ticker Bar */}
       <div className="bg-emerald-900 text-emerald-100 text-xs py-2 px-4 border-b border-emerald-800 overflow-hidden">
@@ -423,7 +432,7 @@ export default function HomePage() {
       <IssueDetailModal
         issue={selectedIssue}
         onClose={() => setSelectedIssue(null)}
-        userRole={role}
+        userRole={currentUser?.role || "citizen"}
         onStatusUpdate={(newStatus, remarks) => {
           if (selectedIssue) {
             const updated = {

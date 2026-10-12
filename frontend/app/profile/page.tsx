@@ -25,10 +25,12 @@ export default function ProfilePage() {
         setUser(current);
         setName(current.name);
         setPhone(current.phone || "");
+      } else {
+        router.push("/login");
       }
     };
     fetchUser();
-  }, []);
+  }, [router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

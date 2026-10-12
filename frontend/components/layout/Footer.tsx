@@ -79,7 +79,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-8 mt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <p>© {new Date().getFullYear()} Nivaran Civic Grievance Resolution Platform.</p>
+          <p>© 2026 Nivaran Civic Grievance Resolution Platform.</p>
           <p>Empowering citizens, ensuring institutional accountability.</p>
         </div>
       </div>

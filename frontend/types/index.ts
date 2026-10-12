@@ -29,9 +29,77 @@ export interface User {
   phone?: string;
   departmentId?: string;
   departmentName?: string;
+  departmentCode?: string;
   avatarUrl?: string;
   createdAt?: string;
 }
+
+export interface MunicipalDepartment {
+  id: string;
+  name: string;
+  code: string;
+  category: IssueCategory;
+  description: string;
+  badgeColor: string;
+  icon: string;
+}
+
+export const MUNICIPAL_DEPARTMENTS: MunicipalDepartment[] = [
+  {
+    id: "dept-pwd",
+    name: "Public Works Department (PWD)",
+    code: "PWD",
+    category: "roads",
+    description: "Roads, potholes, bridges, footpaths & civil infrastructure",
+    badgeColor: "amber",
+    icon: "🚧",
+  },
+  {
+    id: "dept-water",
+    name: "Jal Sansthan (Water & Sewage)",
+    code: "DJB",
+    category: "water",
+    description: "Potable supply, pipeline bursts, waterlogging & drainage",
+    badgeColor: "cyan",
+    icon: "💧",
+  },
+  {
+    id: "dept-power",
+    name: "Madhyanchal Vidyut Vitran (MVVNL)",
+    code: "MVVNL",
+    category: "electricity",
+    description: "Streetlights, blackouts, low voltage & transformers",
+    badgeColor: "yellow",
+    icon: "⚡",
+  },
+  {
+    id: "dept-sanitation",
+    name: "Nagar Nigam (Sanitation & Waste)",
+    code: "LMC",
+    category: "sanitation",
+    description: "Garbage collection, overflowing bins, open dumps & sanitization",
+    badgeColor: "emerald",
+    icon: "🧹",
+  },
+  {
+    id: "dept-education",
+    name: "Basic Education Department",
+    code: "EDU",
+    category: "education",
+    description: "Municipal schools, mid-day meals & educational infrastructure",
+    badgeColor: "indigo",
+    icon: "🏫",
+  },
+  {
+    id: "dept-general",
+    name: "Urban Civic Redressal Cell",
+    code: "CIVIC",
+    category: "other",
+    description: "Encroachments, public nuisance & general civic maintenance",
+    badgeColor: "purple",
+    icon: "🏛️",
+  },
+];
 
 export interface IssueTimelineEvent {
   status: IssueStatus;

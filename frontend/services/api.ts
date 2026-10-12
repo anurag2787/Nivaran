@@ -12,22 +12,15 @@ const getAuthHeaders = (): Record<string, string> => {
 export const api = {
   // Auth API (Phase 2 Module A)
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    let res: Response;
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const json: ApiResponse<{ user: User; token: string }> = await res.json();
-      if (!res.ok) throw new Error(json.message || "Login failed");
-
-      if (json.data.token && typeof window !== "undefined") {
-        localStorage.setItem("nivaran-token", json.data.token);
-        localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
-      }
-      return json.data;
-    } catch {
-      // Mock fallback
+    } catch (networkErr) {
+      console.warn("Backend server unreachable, falling back to offline mock auth:", networkErr);
       const role = email.includes("officer") ? "officer" : email.includes("admin") ? "admin" : "citizen";
       const user: User = {
         ...mockUser,
@@ -41,24 +34,29 @@ export const api = {
       }
       return { user, token: "mock-jwt-token-nivaran-phase1" };
     }
+
+    const json: ApiResponse<{ user: User; token: string }> = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || "Invalid email or password");
+    }
+
+    if (json.data?.token && typeof window !== "undefined") {
+      localStorage.setItem("nivaran-token", json.data.token);
+      localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+    }
+    return json.data;
   },
 
   async register(name: string, email: string, password: string, phone = ""): Promise<{ user: User; token: string }> {
+    let res: Response;
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, phone }),
       });
-      const json: ApiResponse<{ user: User; token: string }> = await res.json();
-      if (!res.ok) throw new Error(json.message || "Registration failed");
-
-      if (json.data.token && typeof window !== "undefined") {
-        localStorage.setItem("nivaran-token", json.data.token);
-        localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
-      }
-      return json.data;
-    } catch {
+    } catch (networkErr) {
+      console.warn("Backend server unreachable, falling back to offline mock registration:", networkErr);
       const user: User = {
         id: `user-${Date.now()}`,
         name,
@@ -72,6 +70,18 @@ export const api = {
       }
       return { user, token: "mock-jwt-token-nivaran-phase1" };
     }
+
+    const json: ApiResponse<{ user: User; token: string }> = await res.json();
+    if (!res.ok) {
+      const errorMsg = json.message || (json.errors && json.errors[0]?.message) || "Registration failed";
+      throw new Error(errorMsg);
+    }
+
+    if (json.data?.token && typeof window !== "undefined") {
+      localStorage.setItem("nivaran-token", json.data.token);
+      localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+    }
+    return json.data;
   },
 
   logout(): void {
@@ -81,19 +91,40 @@ export const api = {
     }
   },
 
-  async getMe(): Promise<User> {
+  async getMe(): Promise<User | null> {
     try {
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("nivaran-user");
+          if (stored) return JSON.parse(stored);
+        }
+        return null;
+      }
+
       const res = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: getAuthHeaders(),
+        headers,
       });
-      const json: ApiResponse<{ user: User }> = await res.json();
-      return json.data.user;
+      if (res.ok) {
+        const json: ApiResponse<{ user: User }> = await res.json();
+        if (json.data?.user) {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
+          }
+          return json.data.user;
+        }
+      }
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("nivaran-user");
+        if (stored) return JSON.parse(stored);
+      }
+      return null;
     } catch {
       if (typeof window !== "undefined") {
         const stored = localStorage.getItem("nivaran-user");
         if (stored) return JSON.parse(stored);
       }
-      return mockUser;
+      return null;
     }
   },
 
@@ -105,16 +136,23 @@ export const api = {
         body: JSON.stringify(updates),
       });
       const json: ApiResponse<{ user: User }> = await res.json();
-      if (typeof window !== "undefined") {
+      if (!res.ok) throw new Error(json.message || "Failed to update profile");
+      if (typeof window !== "undefined" && json.data?.user) {
         localStorage.setItem("nivaran-user", JSON.stringify(json.data.user));
       }
       return json.data.user;
-    } catch {
-      const updated = { ...mockUser, ...updates };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("nivaran-user", JSON.stringify(updated));
+    } catch (err) {
+      if (err instanceof TypeError) {
+        const current = (typeof window !== "undefined" && localStorage.getItem("nivaran-user"))
+          ? JSON.parse(localStorage.getItem("nivaran-user")!)
+          : mockUser;
+        const updated = { ...current, ...updates };
+        if (typeof window !== "undefined") {
+          localStorage.setItem("nivaran-user", JSON.stringify(updated));
+        }
+        return updated;
       }
-      return updated;
+      throw err;
     }
   },
 
@@ -198,12 +236,12 @@ export const api = {
     }
   },
 
-  async updateStatus(id: string, status: IssueStatus, remarks?: string): Promise<boolean> {
+  async updateStatus(id: string, status: IssueStatus, remarks?: string, evidenceUrl?: string): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ status, remarks }),
+        body: JSON.stringify({ status, remarks, evidenceUrl }),
       });
       return res.ok;
     } catch {
@@ -211,7 +249,7 @@ export const api = {
     }
   },
 
-  async assignDepartment(id: string, data: { departmentName: string; departmentCode?: string; officerName?: string }): Promise<boolean> {
+  async assignDepartment(id: string, data: { departmentName: string; departmentCode?: string; officerName?: string; remarks?: string }): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/issues/${id}/assign`, {
         method: "PATCH",
@@ -258,6 +296,16 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/analytics/overview`);
       const json: ApiResponse<{ overview: OverviewStats }> = await res.json();
       return json.data.overview || mockStats;
+    } catch {
+      return mockStats;
+    }
+  },
+
+  async getOverviewStats(): Promise<OverviewStats> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/stats/overview`, { cache: "no-store" });
+      const json: ApiResponse<{ stats?: OverviewStats; overview?: OverviewStats }> = await res.json();
+      return json.data?.stats || json.data?.overview || mockStats;
     } catch {
       return mockStats;
     }

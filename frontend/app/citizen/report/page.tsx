@@ -19,7 +19,7 @@ export default function CitizenReportPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
-      <Navbar currentRole="citizen" />
+      <Navbar />
 
       <main className="flex-1 max-w-2xl mx-auto px-4 py-10 w-full">
         <div className="mb-6 flex items-center justify-between">

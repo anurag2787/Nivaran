@@ -7,15 +7,28 @@ import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { StatusBadge, CategoryBadge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { IssueDetailModal } from "@/components/issues/IssueDetailModal";
-import { Issue, IssueStatus } from "@/types";
+import { User, Issue, IssueStatus } from "@/types";
 import { mockIssues, mockStats } from "@/services/mockData";
 import { api } from "@/services/api";
+import Link from "next/link";
 
 export default function AdminPage() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nivaran-user");
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch {}
+      }
+    }
+    setAuthChecked(true);
+
     api.getIssues().then((data) => {
       if (data && data.length > 0) setIssues(data);
     }).catch(() => {});
@@ -40,9 +53,56 @@ export default function AdminPage() {
     }
   };
 
+  if (authChecked && (!currentUser || currentUser.role !== "admin")) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+        <Navbar />
+        <main className="flex-1 max-w-lg mx-auto px-4 py-20 flex flex-col justify-center text-center">
+          <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl font-bold">
+              🛡️
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white">
+              Administrator Clearance Required
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {currentUser
+                ? `You are signed in as a ${currentUser.role} (${currentUser.name}). Only city administrators can view and execute municipal administrative operations.`
+                : "This console is restricted to municipal administrative officers. Please log in with an administrator account."}
+            </p>
+            <div className="pt-4 flex flex-col gap-2">
+              {!currentUser ? (
+                <Link
+                  href="/login"
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md"
+                >
+                  Sign In to Nivaran →
+                </Link>
+              ) : (
+                <Link
+                  href={currentUser.role === "officer" ? "/officer" : "/citizen"}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md"
+                >
+                  Go to {currentUser.role === "officer" ? "Officer Taskboard" : "Citizen Portal"} →
+                </Link>
+              )}
+              <Link
+                href="/issues"
+                className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm"
+              >
+                Browse Public Issues
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
-      <Navbar currentRole="admin" />
+      <Navbar />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8 border-b border-slate-200 dark:border-slate-800 pb-6">

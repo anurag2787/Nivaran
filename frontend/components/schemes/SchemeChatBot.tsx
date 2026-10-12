@@ -51,6 +51,13 @@ export function SchemeChatBot({ isOpenExternal, onCloseExternal }: SchemeChatBot
     }
   }, [isOpenExternal]);
 
+  // Support global opening from any button/page
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener("open-nivaran-mitra", handleOpen);
+    return () => window.removeEventListener("open-nivaran-mitra", handleOpen);
+  }, []);
+
   const handleToggle = (openState: boolean) => {
     setIsOpen(openState);
     if (!openState && onCloseExternal) {

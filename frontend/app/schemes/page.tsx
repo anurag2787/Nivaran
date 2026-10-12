@@ -8,7 +8,6 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { mockSchemes } from "@/services/mockData";
 import { api } from "@/services/api";
 import { Scheme } from "@/types";
-import { SchemeChatBot } from "@/components/schemes/SchemeChatBot";
 
 const SCHEME_CATEGORIES = [
   { label: "All Schemes", value: "All", icon: "🇮🇳" },
@@ -26,7 +25,6 @@ export default function SchemesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAiAdvisorOpen, setIsAiAdvisorOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -111,7 +109,11 @@ export default function SchemesPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsAiAdvisorOpen(true)}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("open-nivaran-mitra"));
+                  }
+                }}
                 className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
                 <span>✨ Ask Nivaran AI</span>
@@ -263,12 +265,6 @@ export default function SchemesPage() {
             ))}
           </div>
         )}
-
-        {/* AI Scheme Advisor Widget (Gemini) */}
-        <SchemeChatBot
-          isOpenExternal={isAiAdvisorOpen}
-          onCloseExternal={() => setIsAiAdvisorOpen(false)}
-        />
       </main>
 
       <Footer />

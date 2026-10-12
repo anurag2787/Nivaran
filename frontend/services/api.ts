@@ -1,7 +1,10 @@
 import { ApiResponse, Issue, IssueStatus, OverviewStats, Scheme, User } from "../types";
 import { mockIssues, mockSchemes, mockStats, mockUser } from "./mockData";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_BASE_URL =
+  typeof window !== "undefined"
+    ? "/backend-api"
+    : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1");
 
 const getAuthHeaders = (): Record<string, string> => {
   if (typeof window === "undefined") return {};
@@ -539,5 +542,51 @@ export const api = {
   async getSchemeById(id: string): Promise<Scheme | null> {
     const list = await this.getSchemes();
     return list.find((s) => s.id === id || (s as any)._id === id) || null;
+  },
+
+  // AI Scheme Advisor (Phase 2 Gemini Chatbot)
+  async askSchemeAdvisor(
+    message: string,
+    history?: Array<{ role: "user" | "assistant"; content: string }>
+  ): Promise<{
+    reply: string;
+    schemes: Scheme[];
+    source: "gemini" | "local-rule";
+    note?: string;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/ai/scheme-advisor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, history }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.data) {
+        throw new Error(json.message || "Failed to generate recommendation");
+      }
+      return json.data;
+    } catch (err: any) {
+      console.warn("AI Scheme Advisor API failed, generating client fallback:", err);
+      const allSchemes = await this.getSchemes();
+      const q = message.toLowerCase();
+      const matched = allSchemes.filter((s) => {
+        return (
+          s.title.toLowerCase().includes(q) ||
+          s.category.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q) ||
+          (s.eligibility || []).some((e) => e.toLowerCase().includes(q))
+        );
+      }).slice(0, 3);
+
+      return {
+        reply:
+          matched.length > 0
+            ? `Namaste! Here are the government welfare schemes that match your query from our active catalog.`
+            : `Namaste! I couldn't find a direct match. Please tell me your occupation, age, or requirement (such as housing, scholarship, healthcare, or loan).`,
+        schemes: matched.length > 0 ? matched : allSchemes.slice(0, 3),
+        source: "local-rule",
+        note: "Offline fallback mode active.",
+      };
+    }
   },
 };

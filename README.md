@@ -1,4 +1,4 @@
-# Nivaran — Civic Grievance Resolution & Public Accountability Platform
+# Nivaran -- Civic Grievance Resolution & Public Accountability Platform
 
 > **One platform. Every voice. Visible change.**  
 > A transparent, human-centered civic grievance registration, tracking, and municipal workflow resolution system designed to connect citizens, municipal field officers, and city administrators.
@@ -156,7 +156,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
 
 You will need **two terminal tabs/windows**:
 
-#### Terminal 1 — Start the Backend Server:
+#### Terminal 1 -- Start the Backend Server:
 ```bash
 cd backend
 npm install
@@ -166,7 +166,7 @@ npm start
 > Server runs at: **`http://localhost:5000`**  
 > Health check: **`http://localhost:5000/api/v1/health`**
 
-#### Terminal 2 — Start the Frontend Application:
+#### Terminal 2 -- Start the Frontend Application:
 ```bash
 cd frontend
 npm install
@@ -193,28 +193,28 @@ For fast review and testing without manual registration, Nivaran includes pre-se
 All backend API routes are prefixed with `/api/v1`:
 
 ### Authentication & Officers (`/api/v1/auth`)
-- `POST /auth/register` — Register a new citizen account
-- `POST /auth/login` — Login and receive JWT bearer token
-- `GET /auth/me` — Retrieve current authenticated user profile
-- `GET /auth/officers` — List all active appointed municipal officers
-- `GET /auth/users` — List registered users directory (Admin access)
-- `POST /auth/assign-officer` — Appoint or update officer details & department jurisdiction
+- `POST /auth/register` -- Register a new citizen account
+- `POST /auth/login` -- Login and receive JWT bearer token
+- `GET /auth/me` -- Retrieve current authenticated user profile
+- `GET /auth/officers` -- List all active appointed municipal officers
+- `GET /auth/users` -- List registered users directory (Admin access)
+- `POST /auth/assign-officer` -- Appoint or update officer details & department jurisdiction
 
 ### Grievances & Issues (`/api/v1/issues`)
-- `GET /issues` — Fetch issues with optional filtering (`status`, `category`, `search`, `sortBy`)
-- `GET /issues/mine` — Fetch grievances filed by the logged-in citizen
-- `GET /issues/:id` — Get detailed issue data with timeline events
-- `POST /issues` — Submit a new grievance
-- `PATCH /issues/:id/status` — Update issue status with remarks and evidence
-- `PATCH /issues/:id/assign` — Reallocate issue to another municipal department
-- `POST /issues/:id/support` — Toggle citizen support/upvote on an issue
+- `GET /issues` -- Fetch issues with optional filtering (`status`, `category`, `search`, `sortBy`)
+- `GET /issues/mine` -- Fetch grievances filed by the logged-in citizen
+- `GET /issues/:id` -- Get detailed issue data with timeline events
+- `POST /issues` -- Submit a new grievance
+- `PATCH /issues/:id/status` -- Update issue status with remarks and evidence
+- `PATCH /issues/:id/assign` -- Reallocate issue to another municipal department
+- `POST /issues/:id/support` -- Toggle citizen support/upvote on an issue
 
 ### Welfare Schemes (`/api/v1/schemes`)
-- `GET /schemes` — List welfare schemes with category filtering
-- `GET /schemes/:id` — Get scheme details and application eligibility
+- `GET /schemes` -- List welfare schemes with category filtering
+- `GET /schemes/:id` -- Get scheme details and application eligibility
 
 ### Platform Statistics (`/api/v1/stats`)
-- `GET /stats/overview` — Aggregated counts (Total, Resolved, Pending, Active Citizens)
+- `GET /stats/overview` -- Aggregated counts (Total, Resolved, Pending, Active Citizens)
 
 ---
 

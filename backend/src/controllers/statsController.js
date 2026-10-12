@@ -1,3 +1,4 @@
+const Scheme = require("../models/Scheme");
 const { sendSuccess } = require("../utils/response");
 
 const getOverviewStats = async (req, res, next) => {
@@ -24,36 +25,22 @@ const getOverviewStats = async (req, res, next) => {
 
 const getSchemes = async (req, res, next) => {
   try {
-    const schemes = [
-      {
-        id: "scheme-01",
-        title: "PM Awas Yojana (Urban)",
-        ministry: "Ministry of Housing and Urban Affairs",
-        category: "Housing",
-        description: "Assistance to all eligible families and beneficiaries for pucca houses with basic amenities.",
-        eligibility: ["EWS / LIG family", "No pucca house anywhere in India"],
-        applyUrl: "https://pmaymis.gov.in",
-      },
-      {
-        id: "scheme-02",
-        title: "Jal Jeevan Mission",
-        ministry: "Ministry of Jal Shakti",
-        category: "Water Supply",
-        description: "Aims to provide safe and adequate drinking water through individual household tap connections.",
-        eligibility: ["Rural / Peri-urban households with piped water deficiency"],
-        applyUrl: "https://jaljeevanmission.gov.in",
-      },
-      {
-        id: "scheme-03",
-        title: "Swachh Bharat Urban Mission 2.0",
-        ministry: "Ministry of Housing and Urban Affairs",
-        category: "Sanitation",
-        description: "Achieving 100% door-to-door waste segregation and processing across all statutory towns.",
-        eligibility: ["Urban local bodies & resident welfare associations"],
-        applyUrl: "https://swachhbharaturban.gov.in",
-      },
-    ];
-    return sendSuccess(res, "Public schemes fetched successfully", { schemes });
+    const { category, search } = req.query;
+
+    const query = { isActive: true };
+    if (category && category !== "All") {
+      query.category = { $regex: new RegExp(`^${category}$`, "i") };
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { ministry: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const schemes = await Scheme.find(query).sort({ title: 1 });
+    return sendSuccess(res, "Public schemes fetched successfully", { schemes, count: schemes.length });
   } catch (error) {
     next(error);
   }

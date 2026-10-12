@@ -336,16 +336,27 @@ const updateStatus = async (req, res, next) => {
 const assignDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { departmentName, departmentCode, officerName } = req.body;
+    const { departmentName, departmentCode, officerName, remarks } = req.body;
 
     let updatedIssue;
     try {
       updatedIssue = await Issue.findById(id);
       if (updatedIssue) {
         updatedIssue.status = "assigned";
+        updatedIssue.assignedDepartment = {
+          id: `dept-${Date.now()}`,
+          name: departmentName || "Public Works Department",
+          code: departmentCode || "PWD",
+        };
+        if (officerName) {
+          updatedIssue.assignedOfficer = {
+            id: `off-${Date.now()}`,
+            name: officerName,
+          };
+        }
         updatedIssue.timeline.push({
           status: "assigned",
-          remarks: `Assigned to ${departmentName || "Department"}`,
+          remarks: remarks || `Allotted to ${departmentName || "Department"}`,
           timestamp: new Date(),
         });
         await updatedIssue.save();
@@ -368,7 +379,7 @@ const assignDepartment = async (req, res, next) => {
       }
       inMemoryIssues[idx].timeline.push({
         status: "assigned",
-        remarks: `Assigned to ${departmentName || "Public Works Department"} by Administrator`,
+        remarks: remarks || `Allotted to ${departmentName || "Department"}`,
         timestamp: new Date().toISOString(),
       });
       updatedIssue = inMemoryIssues[idx];

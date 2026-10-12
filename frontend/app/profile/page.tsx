@@ -113,6 +113,28 @@ export default function ProfilePage() {
                 placeholder="+91 ..."
               />
 
+              {user?.role === "officer" && (
+                <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      Official Department & Organization
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      Admin Designated
+                    </span>
+                  </div>
+                  <p className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    {user.departmentName || "Public Works Department (PWD)"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Department Code: <strong className="font-mono text-blue-600 dark:text-blue-400">{user.departmentCode || "PWD"}</strong>
+                  </p>
+                  <p className="text-[11px] text-slate-400 italic pt-1 border-t border-blue-100 dark:border-blue-900/60">
+                    Note: Department jurisdictions are assigned exclusively by Municipal Administration. To transfer or reallocate, contact the city admin desk.
+                  </p>
+                </div>
+              )}
+
               <div className="pt-2 flex justify-end">
                 <Button type="submit" variant="primary" size="sm" isLoading={isSaving}>
                   Save Changes

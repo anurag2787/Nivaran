@@ -24,6 +24,44 @@ let inMemoryUsers = [
     email: "officer@example.com",
     role: "officer",
     phone: "+91 98111 22334",
+    departmentName: "Public Works Department (PWD)",
+    departmentCode: "PWD",
+    avatarUrl: "",
+    passwordHash: "",
+  },
+  {
+    id: "user-104",
+    _id: "user-104",
+    name: "Smt. Vandana Singh",
+    email: "water.officer@example.com",
+    role: "officer",
+    phone: "+91 98222 33445",
+    departmentName: "Jal Sansthan (Water & Sewage)",
+    departmentCode: "DJB",
+    avatarUrl: "",
+    passwordHash: "",
+  },
+  {
+    id: "user-105",
+    _id: "user-105",
+    name: "Er. Alok Tripathi",
+    email: "power.officer@example.com",
+    role: "officer",
+    phone: "+91 98333 44556",
+    departmentName: "Madhyanchal Vidyut Vitran (MVVNL)",
+    departmentCode: "MVVNL",
+    avatarUrl: "",
+    passwordHash: "",
+  },
+  {
+    id: "user-106",
+    _id: "user-106",
+    name: "Dr. Pradeep Mishra",
+    email: "sanitation.officer@example.com",
+    role: "officer",
+    phone: "+91 98444 55667",
+    departmentName: "Nagar Nigam (Sanitation & Waste)",
+    departmentCode: "LMC",
     avatarUrl: "",
     passwordHash: "",
   },
@@ -174,6 +212,9 @@ const login = async (req, res, next) => {
       email: user.email,
       role: user.role,
       phone: user.phone || "",
+      departmentId: user.departmentId || null,
+      departmentName: user.departmentName || (user.role === "officer" ? "Public Works Department (PWD)" : ""),
+      departmentCode: user.departmentCode || (user.role === "officer" ? "PWD" : ""),
     };
 
     return sendSuccess(res, "Login successful", { user: userPayload, token });
@@ -205,14 +246,20 @@ const getMe = async (req, res, next) => {
 const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user?.id;
-    const { name, phone, avatarUrl } = req.body;
+    const { name, phone, avatarUrl, departmentName, departmentCode } = req.body;
 
     let updated;
     try {
       if (userId) {
         updated = await User.findByIdAndUpdate(
           userId,
-          { ...(name && { name }), ...(phone && { phone }), ...(avatarUrl && { avatarUrl }) },
+          {
+            ...(name && { name }),
+            ...(phone && { phone }),
+            ...(avatarUrl && { avatarUrl }),
+            ...(departmentName && { departmentName }),
+            ...(departmentCode && { departmentCode }),
+          },
           { new: true }
         ).select("-password");
       }
@@ -224,6 +271,8 @@ const updateProfile = async (req, res, next) => {
         if (name) found.name = name;
         if (phone) found.phone = phone;
         if (avatarUrl) found.avatarUrl = avatarUrl;
+        if (departmentName) found.departmentName = departmentName;
+        if (departmentCode) found.departmentCode = departmentCode;
         updated = found;
       }
     }
@@ -234,9 +283,135 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+const getOfficers = async (req, res, next) => {
+  try {
+    let officers = [];
+    try {
+      officers = await User.find({ role: "officer" }).select("-password");
+    } catch {}
+
+    if (!officers || officers.length === 0) {
+      officers = inMemoryUsers.filter((u) => u.role === "officer");
+    }
+
+    return sendSuccess(res, "Officers list fetched", { officers });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const assignOfficerDepartment = async (req, res, next) => {
+  try {
+    const { id, email, name, phone, departmentName, departmentCode, role = "officer" } = req.body;
+    if (!email && !id) {
+      return sendError(res, "Email or ID is required to appoint or edit an officer", [], 400);
+    }
+
+    const cleanEmail = email ? email.toLowerCase().trim() : "";
+    let user;
+
+    try {
+      if (id) {
+        user = await User.findById(id);
+      }
+      if (!user && cleanEmail) {
+        user = await User.findOne({ email: cleanEmail });
+      }
+
+      if (user) {
+        user.role = role || "officer";
+        if (cleanEmail && user.email.toLowerCase() !== cleanEmail) user.email = cleanEmail;
+        if (name !== undefined) user.name = name;
+        if (phone !== undefined) user.phone = phone;
+        if (departmentName !== undefined) user.departmentName = departmentName;
+        if (departmentCode !== undefined) user.departmentCode = departmentCode;
+        await user.save();
+      } else if (cleanEmail) {
+        const hashedPassword = await bcrypt.hash("officer123", 10);
+        user = await User.create({
+          name: name || cleanEmail.split("@")[0],
+          email: cleanEmail,
+          password: hashedPassword,
+          phone: phone || "",
+          role: role || "officer",
+          departmentName: departmentName || "Public Works Department (PWD)",
+          departmentCode: departmentCode || "PWD",
+        });
+      }
+    } catch {
+      // In-memory fallback
+    }
+
+    let inMem = inMemoryUsers.find(
+      (u) =>
+        (id && (u.id === id || u._id === id)) ||
+        (cleanEmail && u.email.toLowerCase() === cleanEmail)
+    );
+    if (inMem) {
+      inMem.role = role || "officer";
+      if (cleanEmail) inMem.email = cleanEmail;
+      if (name !== undefined) inMem.name = name;
+      if (phone !== undefined) inMem.phone = phone;
+      if (departmentName !== undefined) inMem.departmentName = departmentName;
+      if (departmentCode !== undefined) inMem.departmentCode = departmentCode;
+      user = inMem;
+    } else if (cleanEmail) {
+      user = {
+        id: `user-${Date.now()}`,
+        _id: `user-${Date.now()}`,
+        name: name || cleanEmail.split("@")[0],
+        email: cleanEmail,
+        role: role || "officer",
+        departmentName: departmentName || "Public Works Department (PWD)",
+        departmentCode: departmentCode || "PWD",
+        phone: phone || "+91 98000 00000",
+      };
+      inMemoryUsers.push(user);
+    }
+
+    const sanitized = {
+      id: user._id || user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || "",
+      departmentName: user.departmentName,
+      departmentCode: user.departmentCode,
+    };
+
+    return sendSuccess(
+      res,
+      `Officer ${user.name} (${user.email}) details updated successfully`,
+      { officer: sanitized }
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllUsers = async (req, res, next) => {
+  try {
+    let users = [];
+    try {
+      users = await User.find().select("-password");
+    } catch {}
+
+    if (!users || users.length === 0) {
+      users = inMemoryUsers;
+    }
+
+    return sendSuccess(res, "All users fetched", { users });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
+  getOfficers,
+  assignOfficerDepartment,
+  getAllUsers,
 };

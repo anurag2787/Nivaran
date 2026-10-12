@@ -156,6 +156,133 @@ export const api = {
     }
   },
 
+  async getOfficers(): Promise<User[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/officers`, { cache: "no-store" });
+      const json: ApiResponse<{ officers: User[] }> = await res.json();
+      return json.data?.officers || [];
+    } catch {
+      return [
+        {
+          id: "user-102",
+          name: "Er. Rajesh Verma",
+          email: "officer@example.com",
+          role: "officer",
+          departmentName: "Public Works Department (PWD)",
+          departmentCode: "PWD",
+        },
+        {
+          id: "user-104",
+          name: "Smt. Vandana Singh",
+          email: "water.officer@example.com",
+          role: "officer",
+          departmentName: "Jal Sansthan (Water & Sewage)",
+          departmentCode: "DJB",
+        },
+        {
+          id: "user-105",
+          name: "Er. Alok Tripathi",
+          email: "power.officer@example.com",
+          role: "officer",
+          departmentName: "Madhyanchal Vidyut Vitran (MVVNL)",
+          departmentCode: "MVVNL",
+        },
+        {
+          id: "user-106",
+          name: "Dr. Pradeep Mishra",
+          email: "sanitation.officer@example.com",
+          role: "officer",
+          departmentName: "Nagar Nigam (Sanitation & Waste)",
+          departmentCode: "LMC",
+        },
+      ];
+    }
+  },
+
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/users`, { cache: "no-store" });
+      const json: ApiResponse<{ users: User[] }> = await res.json();
+      return json.data?.users || [];
+    } catch {
+      return [
+        {
+          id: "user-101",
+          name: "Aarav Sharma",
+          email: "citizen@example.com",
+          role: "citizen",
+          phone: "+91 98765 43210",
+        },
+        {
+          id: "user-102",
+          name: "Er. Rajesh Verma",
+          email: "officer@example.com",
+          role: "officer",
+          departmentName: "Public Works Department (PWD)",
+          departmentCode: "PWD",
+        },
+        {
+          id: "user-104",
+          name: "Smt. Vandana Singh",
+          email: "water.officer@example.com",
+          role: "officer",
+          departmentName: "Jal Sansthan (Water & Sewage)",
+          departmentCode: "DJB",
+        },
+        {
+          id: "user-105",
+          name: "Er. Alok Tripathi",
+          email: "power.officer@example.com",
+          role: "officer",
+          departmentName: "Madhyanchal Vidyut Vitran (MVVNL)",
+          departmentCode: "MVVNL",
+        },
+        {
+          id: "user-106",
+          name: "Dr. Pradeep Mishra",
+          email: "sanitation.officer@example.com",
+          role: "officer",
+          departmentName: "Nagar Nigam (Sanitation & Waste)",
+          departmentCode: "LMC",
+        },
+      ];
+    }
+  },
+
+  async assignOfficerDepartment(payload: {
+    id?: string;
+    email: string;
+    name?: string;
+    phone?: string;
+    departmentName: string;
+    departmentCode: string;
+    role?: string;
+  }): Promise<User> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/assign-officer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      const json: ApiResponse<{ officer: User }> = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to update officer details");
+      return json.data.officer;
+    } catch (err) {
+      if (err instanceof TypeError) {
+        return {
+          id: payload.id || `officer-${Date.now()}`,
+          name: payload.name || payload.email.split("@")[0],
+          email: payload.email,
+          phone: payload.phone || "",
+          role: (payload.role as any) || "officer",
+          departmentName: payload.departmentName,
+          departmentCode: payload.departmentCode,
+        };
+      }
+      throw err;
+    }
+  },
+
   // Issues (Phase 2 Modules B, C, D)
   async getIssues(filters?: { status?: string; category?: string; search?: string; sortBy?: string }): Promise<Issue[]> {
     try {

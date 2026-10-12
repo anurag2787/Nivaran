@@ -1,13 +1,32 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bg-main: #f8fafc;
+  --text-main: #0f172a;
+  --surface-primary: #ffffff;
+  --surface-elevated: #f1f5f9;
+  --border-strong: #cbd5e1;
+  --accent-civic: #059669;
+  color-scheme: light;
+}
+
+.dark, [data-theme="dark"] {
+  --bg-main: #020617;
+  --text-main: #f8fafc;
+  --surface-primary: #0f172a;
+  --surface-elevated: #1e293b;
+  --border-strong: #334155;
+  --accent-civic: #10b981;
+  color-scheme: dark;
 }
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -24,7 +43,8 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-.dark .civic-gradient-text {
+.dark .civic-gradient-text,
+[data-theme="dark"] .civic-gradient-text {
   background: linear-gradient(135deg, #34d399 0%, #2dd4bf 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

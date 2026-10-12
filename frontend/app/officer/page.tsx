@@ -23,7 +23,7 @@ export default function OfficerPage() {
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
-  // Department State
+  // Officer Department is strictly assigned by Admin
   const [selectedDeptCode, setSelectedDeptCode] = useState<string>("PWD");
 
   // Filter Tabs: all, pending, in_progress, resolved
@@ -53,6 +53,23 @@ export default function OfficerPage() {
       }
     }
     setAuthChecked(true);
+
+    // Fetch fresh profile to ensure department assignment is up to date
+    api.getMe().then((freshUser) => {
+      if (freshUser) {
+        setCurrentUser(freshUser);
+        if (freshUser.departmentCode) {
+          setSelectedDeptCode(freshUser.departmentCode);
+        } else if (freshUser.departmentName) {
+          const found = MUNICIPAL_DEPARTMENTS.find(
+            (d) =>
+              d.name.toLowerCase() === freshUser.departmentName?.toLowerCase() ||
+              freshUser.departmentName?.toLowerCase().includes(d.code.toLowerCase())
+          );
+          if (found) setSelectedDeptCode(found.code);
+        }
+      }
+    }).catch(() => {});
 
     api
       .getIssues()
@@ -204,21 +221,6 @@ export default function OfficerPage() {
     );
   };
 
-  // Set default primary department for officer
-  const handleSetPrimaryDept = async (dept: MunicipalDepartment) => {
-    setSelectedDeptCode(dept.code);
-    if (currentUser) {
-      try {
-        const updated = await api.updateProfile({
-          departmentName: dept.name,
-          departmentCode: dept.code,
-        });
-        setCurrentUser(updated);
-        setToastMessage(`Your primary field department has been set to ${dept.name}.`);
-      } catch {}
-    }
-  };
-
   if (
     authChecked &&
     (!currentUser || (currentUser.role !== "officer" && currentUser.role !== "admin"))
@@ -315,59 +317,31 @@ export default function OfficerPage() {
               </p>
             </div>
 
-            {/* Department Active Card & Switcher */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-2xl flex items-center justify-center shrink-0">
-                  {selectedDeptCode === "ALL" ? "🌐" : activeDepartment.icon}
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Active Department View
-                  </span>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                    {selectedDeptCode === "ALL"
-                      ? "All Municipal Departments"
-                      : activeDepartment.name}
-                  </p>
-                  <span className="text-xs text-slate-500">
-                    {selectedDeptCode === "ALL"
-                      ? "Universal municipal queue"
-                      : `Category: ${activeDepartment.category} (${activeDepartment.code})`}
-                  </span>
-                </div>
+            {/* Official Department & Organization Authority Display */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-3xl flex items-center justify-center shrink-0">
+                {activeDepartment.icon}
               </div>
-
-              {/* Department Dropdown Switcher */}
-              <div className="sm:border-l sm:border-slate-200 dark:sm:border-slate-800 sm:pl-4 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Switch Field / Department:
-                </label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedDeptCode}
-                    onChange={(e) => setSelectedDeptCode(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    {MUNICIPAL_DEPARTMENTS.map((dept) => (
-                      <option key={dept.code} value={dept.code}>
-                        {dept.icon} {dept.name} ({dept.code})
-                      </option>
-                    ))}
-                    <option value="ALL">🌐 All Departments (Universal Queue)</option>
-                  </select>
-
-                  {selectedDeptCode !== "ALL" &&
-                    currentUser?.departmentCode !== selectedDeptCode && (
-                      <button
-                        type="button"
-                        onClick={() => handleSetPrimaryDept(activeDepartment)}
-                        title="Set this department as your default assigned profile"
-                        className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors cursor-pointer shrink-0"
-                      >
-                        Set as Default
-                      </button>
-                    )}
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Assigned Department & Jurisdiction
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Admin Designated
+                  </span>
+                </div>
+                <p className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                  {activeDepartment.name}
+                </p>
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                  <span>
+                    Field: <strong className="text-slate-700 dark:text-slate-300 capitalize">{activeDepartment.category}</strong>
+                  </span>
+                  <span>•</span>
+                  <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                    Code: {activeDepartment.code}
+                  </span>
                 </div>
               </div>
             </div>
@@ -379,11 +353,7 @@ export default function OfficerPage() {
           <StatCard
             label="Total in Department"
             value={stats.total.toString()}
-            subtitle={
-              selectedDeptCode === "ALL"
-                ? "Across all departments"
-                : `${activeDepartment.code} department total`
-            }
+            subtitle={`${activeDepartment.code} department total`}
           />
           <StatCard
             label="Pending Action"
@@ -473,13 +443,7 @@ export default function OfficerPage() {
                 onClick={() => setActiveTab("all")}
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
               >
-                View All Department Tasks
-              </button>
-              <button
-                onClick={() => setSelectedDeptCode("ALL")}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
-              >
-                View Universal Queue
+                View All {activeDepartment.code} Department Tasks
               </button>
             </div>
           </div>

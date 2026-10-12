@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
@@ -8,23 +8,64 @@ import { IssueReportForm } from "@/components/forms/IssueReportForm";
 import { IssueCard } from "@/components/issues/IssueCard";
 import { IssueDetailModal } from "@/components/issues/IssueDetailModal";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Issue } from "@/types";
+import { Issue, User } from "@/types";
 import { mockIssues } from "@/services/mockData";
+import { api } from "@/services/api";
 
 export default function CitizenPage() {
-  const [issues, setIssues] = useState<Issue[]>(mockIssues);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [filter, setFilter] = useState<"all" | "active" | "resolved">("all");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadIssues = async () => {
+    setIsLoading(true);
+    try {
+      const my = await api.getMyIssues();
+      if (my && my.length > 0) {
+        setIssues(my);
+      } else {
+        const all = await api.getIssues();
+        setIssues(all && all.length > 0 ? all : mockIssues);
+      }
+    } catch {
+      setIssues(mockIssues);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nivaran-user");
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch {}
+      }
+    }
+    loadIssues();
+  }, []);
 
   const handleCreateSuccess = (newIssue: Issue) => {
-    setIssues((prev) => [newIssue, ...prev]);
+    setIssues((prev) => [
+      newIssue,
+      ...prev.filter((i) => (i.id || i._id) !== (newIssue.id || newIssue._id)),
+    ]);
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 5000);
   };
 
-  const myIssues = issues;
-  const resolvedCount = myIssues.filter((i) => i.status === "resolved").length;
-  const inProgressCount = myIssues.filter(
+  const myIssues = issues.filter((i) => {
+    if (filter === "active") return i.status !== "resolved";
+    if (filter === "resolved") return i.status === "resolved";
+    return true;
+  });
+
+  const resolvedCount = issues.filter((i) => i.status === "resolved").length;
+  const inProgressCount = issues.filter(
     (i) => i.status === "in_progress" || i.status === "awaiting_verification"
   ).length;
 
@@ -109,24 +150,91 @@ export default function CitizenPage() {
 
           {/* My Issues Feed (Right side) */}
           <div className="lg:col-span-7">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                My Tracked Grievances
-              </h2>
-              <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-full shadow-2xs">
-                {myIssues.length} Complaints
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>My Tracked Grievances</span>
+                  <button
+                    onClick={loadIssues}
+                    title="Refresh complaints"
+                    className="text-xs p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    🔄
+                  </button>
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  {currentUser ? `Complaints filed by ${currentUser.name || currentUser.email}` : "Your registered civic reports"}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold shadow-2xs">
+                  <button
+                    onClick={() => setFilter("all")}
+                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                      filter === "all" ? "bg-emerald-600 text-white" : "text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    All ({issues.length})
+                  </button>
+                  <button
+                    onClick={() => setFilter("active")}
+                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                      filter === "active" ? "bg-emerald-600 text-white" : "text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    In Progress ({inProgressCount})
+                  </button>
+                  <button
+                    onClick={() => setFilter("resolved")}
+                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                      filter === "resolved" ? "bg-emerald-600 text-white" : "text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    Resolved ({resolvedCount})
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {myIssues.map((issue) => (
-                <IssueCard
-                  key={issue.id || issue._id}
-                  issue={issue}
-                  onSelect={(selected) => setSelectedIssue(selected)}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                <span className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin inline-block mb-2" />
+                <p className="text-xs text-slate-500">Loading your tracked grievances...</p>
+              </div>
+            ) : myIssues.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {myIssues.map((issue) => (
+                  <IssueCard
+                    key={issue.id || issue._id}
+                    issue={issue}
+                    onSelect={(selected) => setSelectedIssue(selected)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-10 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center text-2xl font-bold mb-3">
+                  📋
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">
+                  No grievances found under this filter
+                </h3>
+                <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
+                  {filter === "all"
+                    ? "You haven't filed any complaints yet. Submit a new grievance using the form to track it live."
+                    : `No grievances currently matching '${filter}' status.`}
+                </p>
+                {filter !== "all" && (
+                  <button
+                    onClick={() => setFilter("all")}
+                    className="text-xs font-bold text-emerald-600 hover:underline cursor-pointer"
+                  >
+                    View All ({issues.length}) Grievances →
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

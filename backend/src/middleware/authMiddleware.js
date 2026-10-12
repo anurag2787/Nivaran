@@ -48,7 +48,34 @@ const requireRole = (...allowedRoles) => {
   };
 };
 
+const optionalAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      const secret = process.env.JWT_SECRET || "nivaran_jwt_secret_phase1_key_2026";
+      try {
+        const decoded = jwt.verify(token, secret);
+        req.user = decoded;
+      } catch {
+        if (token === "mock-jwt-token-nivaran-phase1" || token.startsWith("mock-")) {
+          req.user = {
+            id: "user-101",
+            email: "citizen@example.com",
+            role: "citizen",
+            name: "Aarav Sharma",
+          };
+        }
+      }
+    }
+    next();
+  } catch {
+    next();
+  }
+};
+
 module.exports = {
   requireAuth,
   requireRole,
+  optionalAuth,
 };

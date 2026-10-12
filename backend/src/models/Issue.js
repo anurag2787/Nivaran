@@ -73,18 +73,27 @@ const issueSchema = new mongoose.Schema(
       },
     },
     reporterId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: false, // Optional for Phase 1 testing/mocking
+      type: String,
+      required: false,
+    },
+    reporter: {
+      type: Object,
+      default: {},
+    },
+    assignedDepartment: {
+      type: Object,
+      default: null,
     },
     assignedDepartmentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    assignedOfficer: {
+      type: Object,
       default: null,
     },
     assignedOfficerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
     images: [{ type: String }],
@@ -93,16 +102,12 @@ const issueSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    supporters: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    supporters: [{ type: String }],
     timeline: [issueTimelineSchema],
   },
   {
     timestamps: true,
+    strict: false,
   }
 );
 

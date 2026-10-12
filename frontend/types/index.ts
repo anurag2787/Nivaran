@@ -131,9 +131,11 @@ export interface Issue {
   category: IssueCategory;
   status: IssueStatus;
   location: IssueLocation;
+  reporterId?: string;
   reporter?: {
     id: string;
     name: string;
+    email?: string;
     phone?: string;
   };
   assignedDepartment?: {

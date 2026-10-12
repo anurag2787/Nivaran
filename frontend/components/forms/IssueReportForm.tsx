@@ -147,6 +147,22 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
     setIsSubmitting(true);
 
     try {
+      let reporterInfo: any = undefined;
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("nivaran-user");
+        if (stored) {
+          try {
+            const u = JSON.parse(stored);
+            reporterInfo = {
+              id: u.id || u._id,
+              name: u.name,
+              email: u.email,
+              phone: u.phone,
+            };
+          } catch {}
+        }
+      }
+
       const payload: Partial<Issue> = {
         title: title.trim(),
         description: description.trim(),
@@ -163,6 +179,8 @@ export const IssueReportForm: React.FC<IssueReportFormProps> = ({
           : [
               "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&auto=format&fit=crop&q=60",
             ],
+        reporter: reporterInfo,
+        reporterId: reporterInfo?.id,
       };
 
       const created = await api.createIssue(payload);

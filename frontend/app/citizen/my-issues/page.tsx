@@ -8,6 +8,7 @@ import { IssueCard } from "@/components/issues/IssueCard";
 import { IssueDetailModal } from "@/components/issues/IssueDetailModal";
 import { Issue } from "@/types";
 import { api } from "@/services/api";
+import { mockIssues } from "@/services/mockData";
 
 export default function MyIssuesPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -16,8 +17,17 @@ export default function MyIssuesPage() {
 
   useEffect(() => {
     const loadIssues = async () => {
-      const my = await api.getMyIssues();
-      setIssues(my);
+      try {
+        const my = await api.getMyIssues();
+        if (my && my.length > 0) {
+          setIssues(my);
+        } else {
+          const all = await api.getIssues();
+          setIssues(all.length > 0 ? all : mockIssues);
+        }
+      } catch {
+        setIssues(mockIssues);
+      }
     };
     loadIssues();
   }, []);

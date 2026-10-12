@@ -167,20 +167,40 @@ const getAllIssues = async (req, res, next) => {
 
 const getMyIssues = async (req, res, next) => {
   try {
-    const currentUserId = req.user?.id || "user-101";
+    const currentUserId = req.user?.id || req.user?._id || req.query.userId || req.query.reporterId || "";
+    const currentUserEmail = req.user?.email || req.query.email || "";
 
     let myIssues = [];
     try {
-      myIssues = await Issue.find({ reporterId: currentUserId }).sort({ createdAt: -1 });
-    } catch {}
+      const orConditions = [];
+      if (currentUserId) {
+        orConditions.push({ reporterId: currentUserId });
+        orConditions.push({ "reporter.id": currentUserId });
+        orConditions.push({ "reporter._id": currentUserId });
+      }
+      if (currentUserEmail) {
+        orConditions.push({ "reporter.email": currentUserEmail.toLowerCase() });
+      }
 
-    if (!myIssues || myIssues.length === 0) {
-      myIssues = inMemoryIssues.filter((i) => i.reporterId === currentUserId || i.reporter?.id === currentUserId);
+      if (orConditions.length > 0) {
+        myIssues = await Issue.find({ $or: orConditions }).sort({ createdAt: -1 });
+      }
+    } catch (e) {
+      console.error("DB getMyIssues error:", e);
     }
 
-    // If still empty in demo mode, return default user-101 issues
-    if (myIssues.length === 0) {
-      myIssues = inMemoryIssues.slice(0, 2);
+    if (!myIssues || myIssues.length === 0) {
+      myIssues = inMemoryIssues.filter((i) => {
+        const idMatch = currentUserId && (i.reporterId === currentUserId || i.reporter?.id === currentUserId || i.reporter?._id === currentUserId);
+        const emailMatch = currentUserEmail && i.reporter?.email && i.reporter.email.toLowerCase() === currentUserEmail.toLowerCase();
+        return idMatch || emailMatch;
+      });
+    }
+
+    // Default seed fallback for demo citizen / initial exploration if no personal issues yet
+    if (myIssues.length === 0 && (!currentUserId || currentUserId === "user-101" || currentUserEmail.includes("citizen") || currentUserId === "6acc79fdf480824bf533621c")) {
+      myIssues = inMemoryIssues.filter((i) => i.reporterId === "user-101" || i.reporter?.id === "user-101");
+      if (myIssues.length === 0) myIssues = inMemoryIssues.slice(0, 2);
     }
 
     return sendSuccess(res, "My issues fetched successfully", { issues: myIssues, count: myIssues.length });
@@ -213,9 +233,30 @@ const getIssueById = async (req, res, next) => {
 
 const createIssue = async (req, res, next) => {
   try {
-    const { title, description, category, location, images = [] } = req.body;
-    const reporterId = req.user?.id || "user-101";
-    const reporterName = req.user?.name || "Aarav Sharma";
+    const { title, description, category, location, images = [], reporter, reporterId: bodyReporterId } = req.body;
+
+    const reporterId =
+      req.user?.id ||
+      req.user?._id ||
+      bodyReporterId ||
+      reporter?.id ||
+      reporter?._id ||
+      "user-101";
+
+    const reporterName =
+      req.user?.name ||
+      reporter?.name ||
+      "Citizen";
+
+    const reporterEmail =
+      req.user?.email ||
+      reporter?.email ||
+      "";
+
+    const reporterPhone =
+      req.user?.phone ||
+      reporter?.phone ||
+      "";
 
     if (!title || !description || !category || !location || !location.address) {
       return sendError(res, "Missing required fields: title, description, category, location.address", [], 400);
@@ -236,7 +277,10 @@ const createIssue = async (req, res, next) => {
       reporterId,
       reporter: {
         id: reporterId,
+        _id: reporterId,
         name: reporterName,
+        email: reporterEmail,
+        phone: reporterPhone,
       },
       images,
       resolutionImages: [],
@@ -254,7 +298,9 @@ const createIssue = async (req, res, next) => {
     let created;
     try {
       created = await Issue.create(newIssuePayload);
-    } catch {
+      inMemoryIssues.unshift(created.toObject ? created.toObject() : created);
+    } catch (err) {
+      console.warn("Issue.create DB warning, fallback to memory:", err.message);
       created = {
         _id: `issue-${Date.now()}`,
         id: `issue-${Date.now()}`,

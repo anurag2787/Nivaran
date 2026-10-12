@@ -308,12 +308,31 @@ export const api = {
 
   async getMyIssues(): Promise<Issue[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/issues/mine`, {
+      let queryParams = "";
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("nivaran-user");
+        if (stored) {
+          try {
+            const u = JSON.parse(stored);
+            if (u.id || u._id || u.email) {
+              const params = new URLSearchParams();
+              if (u.id || u._id) params.set("userId", u.id || u._id);
+              if (u.email) params.set("email", u.email);
+              queryParams = `?${params.toString()}`;
+            }
+          } catch {}
+        }
+      }
+
+      const res = await fetch(`${API_BASE_URL}/issues/mine${queryParams}`, {
         headers: getAuthHeaders(),
         cache: "no-store",
       });
       const json: ApiResponse<{ issues: Issue[] }> = await res.json();
-      return json.data.issues || mockIssues;
+      if (json && json.data && Array.isArray(json.data.issues)) {
+        return json.data.issues;
+      }
+      return mockIssues;
     } catch {
       return mockIssues;
     }
@@ -331,14 +350,35 @@ export const api = {
 
   async createIssue(payload: Partial<Issue>): Promise<Issue> {
     try {
+      const enhancedPayload = { ...payload };
+      if (!enhancedPayload.reporter && typeof window !== "undefined") {
+        const stored = localStorage.getItem("nivaran-user");
+        if (stored) {
+          try {
+            const u = JSON.parse(stored);
+            enhancedPayload.reporter = {
+              id: u.id || u._id || "user-101",
+              name: u.name || "Aarav Sharma",
+              email: u.email || "citizen@example.com",
+              phone: u.phone || "+91 98765 43210",
+            };
+            enhancedPayload.reporterId = u.id || u._id;
+          } catch {}
+        }
+      }
+
       const res = await fetch(`${API_BASE_URL}/issues`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(enhancedPayload),
       });
       const json: ApiResponse<{ issue: Issue }> = await res.json();
-      return json.data.issue;
-    } catch {
+      if (json && json.data?.issue) {
+        return json.data.issue;
+      }
+      throw new Error(json?.message || "Failed to create issue");
+    } catch (err) {
+      console.warn("createIssue fallback to local:", err);
       const synthesized: Issue = {
         id: `mock-${Date.now()}`,
         title: payload.title || "Reported Issue",

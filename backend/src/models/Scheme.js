@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const schemeSchema = new mongoose.Schema(
   {
+    id: {
+      type: String,
+      trim: true,
+      index: true,
+    },
     title: {
       type: String,
       required: true,
@@ -16,6 +21,7 @@ const schemeSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     description: {
       type: String,
@@ -34,6 +40,13 @@ const schemeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (doc, ret) => {
+        ret.id = ret.id || ret._id.toString();
+        return ret;
+      },
+    },
   }
 );
 

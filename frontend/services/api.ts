@@ -508,18 +508,36 @@ export const api = {
   },
 
   // Schemes (Phase 2 Module F)
-  async getSchemes(): Promise<Scheme[]> {
+  async getSchemes(filters?: { category?: string; search?: string }): Promise<Scheme[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/stats/schemes`, { cache: "no-store" });
+      const params = new URLSearchParams();
+      if (filters?.category && filters.category !== "All") params.append("category", filters.category);
+      if (filters?.search) params.append("search", filters.search);
+
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`${API_BASE_URL}/stats/schemes${queryStr}`, { cache: "no-store" });
       const json: ApiResponse<{ schemes: Scheme[] }> = await res.json();
-      return json.data.schemes || mockSchemes;
+      return json.data?.schemes || mockSchemes;
     } catch {
-      return mockSchemes;
+      return mockSchemes.filter((s) => {
+        if (filters?.category && filters.category !== "All" && s.category.toLowerCase() !== filters.category.toLowerCase()) {
+          return false;
+        }
+        if (filters?.search) {
+          const q = filters.search.toLowerCase();
+          return (
+            s.title.toLowerCase().includes(q) ||
+            s.description.toLowerCase().includes(q) ||
+            s.ministry.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      });
     }
   },
 
   async getSchemeById(id: string): Promise<Scheme | null> {
     const list = await this.getSchemes();
-    return list.find((s) => s.id === id) || null;
+    return list.find((s) => s.id === id || (s as any)._id === id) || null;
   },
 };

@@ -544,14 +544,14 @@ export const api = {
     return list.find((s) => s.id === id || (s as any)._id === id) || null;
   },
 
-  // AI Scheme Advisor (Phase 2 Gemini Chatbot)
+  // AI Scheme Advisor (Nivaran Mitra)
   async askSchemeAdvisor(
     message: string,
     history?: Array<{ role: "user" | "assistant"; content: string }>
   ): Promise<{
     reply: string;
     schemes: Scheme[];
-    source: "gemini" | "local-rule";
+    source?: string;
     note?: string;
   }> {
     try {

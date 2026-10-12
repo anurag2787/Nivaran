@@ -10,7 +10,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   schemes?: Scheme[];
-  source?: "gemini" | "local-rule";
+  source?: string;
   timestamp: string;
 }
 

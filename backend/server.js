@@ -22,7 +22,20 @@ connectDB();
 
 // Global Middlewares
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: (origin, callback) => {
+    // Allow server-to-server, curl, local dev, custom CLIENT_URL, and vercel.app previews
+    if (
+      !origin ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1") ||
+      origin.endsWith(".vercel.app") ||
+      origin === process.env.CLIENT_URL
+    ) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permissive fallback
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -58,7 +71,11 @@ app.use((req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Nivaran Server running on http://localhost:${PORT}`);
-});
+// Start server locally (on Vercel serverless, app is exported)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Nivaran Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

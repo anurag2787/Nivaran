@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Nivaran — Civic Grievance Resolution Platform",
+  title: "Nivaran - Civic Grievance Resolution Platform",
   description: "A transparent, human-centered public complaint registration and resolution platform for accountable civic services.",
 };
 

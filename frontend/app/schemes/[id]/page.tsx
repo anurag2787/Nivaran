@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
@@ -9,7 +9,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { Scheme } from "@/types";
 import { api } from "@/services/api";
 
-export default function SingleSchemePage() {
+function SingleSchemeContent() {
   const params = useParams();
   const id = params?.id as string;
   const [scheme, setScheme] = useState<Scheme | null>(null);
@@ -130,5 +130,21 @@ export default function SingleSchemePage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function SingleSchemePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between">
+          <Navbar />
+          <div className="p-12 text-center text-slate-500 text-sm">Loading scheme details...</div>
+          <Footer />
+        </div>
+      }
+    >
+      <SingleSchemeContent />
+    </Suspense>
   );
 }

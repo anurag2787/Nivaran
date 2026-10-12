@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Issue } from "@/types";
 import { api } from "@/services/api";
 
-export default function SingleIssuePage() {
+function SingleIssueContent() {
   const params = useParams();
   const id = params?.id as string;
   const [issue, setIssue] = useState<Issue | null>(null);
@@ -191,5 +191,21 @@ export default function SingleIssuePage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function SingleIssuePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between">
+          <Navbar />
+          <div className="p-12 text-center text-slate-500 text-sm">Loading grievance details...</div>
+          <Footer />
+        </div>
+      }
+    >
+      <SingleIssueContent />
+    </Suspense>
   );
 }

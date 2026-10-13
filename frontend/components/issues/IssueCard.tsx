@@ -19,6 +19,18 @@ export const IssueCard: React.FC<IssueCardProps> = ({
   const [supportCount, setSupportCount] = useState(issue.supportCount);
   const [hasSupported, setHasSupported] = useState(issue.hasSupported || false);
 
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const idToCopy = issue.id || issue._id || "";
+    if (idToCopy) {
+      navigator.clipboard.writeText(idToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const handleSupportClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!hasSupported) {
@@ -59,15 +71,46 @@ export const IssueCard: React.FC<IssueCardProps> = ({
       className="p-5 flex flex-col justify-between hover:border-emerald-500/80 transition-all cursor-pointer group hover:shadow-lg relative overflow-hidden"
     >
       <div>
-        {/* Top Badges & ID */}
-        <div className="flex items-center justify-between gap-2 mb-3">
+        {/* Top Badges */}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
           <CategoryBadge category={issue.category} />
-          <div className="flex items-center gap-1.5">
-            <StatusBadge status={issue.status} />
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
-              #{issue.id || issue._id}
+          <StatusBadge status={issue.status} />
+        </div>
+
+        {/* Tracking ID */}
+        <div className="flex items-center gap-1.5 mb-2.5 min-w-0">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
+            Tracking ID:
+          </span>
+          <button
+            type="button"
+            onClick={handleCopyId}
+            title="Click to copy tracking ID"
+            className="group/id inline-flex items-center gap-1.5 text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100/90 dark:bg-slate-800/80 hover:bg-slate-200/90 dark:hover:bg-slate-700/80 px-2 py-0.5 rounded-md border border-slate-200/70 dark:border-slate-800 transition-colors cursor-pointer min-w-0 max-w-[240px]"
+          >
+            <span className="truncate">#{issue.id || issue._id}</span>
+            <span className="text-[10px] shrink-0">
+              {copied ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-sans font-bold text-[10px]">
+                  Copied!
+                </span>
+              ) : (
+                <svg
+                  className="w-3 h-3 text-slate-400 group-hover/id:text-emerald-500 transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
             </span>
-          </div>
+          </button>
         </div>
 
         {/* Title */}

@@ -1,11 +1,14 @@
 import type { NextConfig } from "next";
 
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "https://nivaran-vugk.vercel.app/api/v1";
+const destinationUrl = rawApiUrl.replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
         source: "/backend-api/:path*",
-        destination: "http://127.0.0.1:5000/api/v1/:path*",
+        destination: `${destinationUrl}/:path*`,
       },
     ];
   },
